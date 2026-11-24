@@ -4,7 +4,7 @@ pkgrel=1
 pkgdesc='CodEz terminal coding agent'
 arch=('x86_64')
 url='https://github.com/rollzian/CodEz'
-license=('MIT')
+license=('LicenseRef-CodEz-Proprietary')
 depends=('ca-certificates' 'coreutils')
 optdepends=('git: repository tools')
 makedepends=('go>=1.23')

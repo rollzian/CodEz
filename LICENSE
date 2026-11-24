@@ -1,3 +1,58 @@
+CodEz Proprietary Source-Viewing License
+Copyright (c) 2026 AuxiaCorp
+All rights reserved.
+
+1. Scope
+This license governs CodEz materials to the extent that AuxiaCorp owns or is
+authorized to license the relevant rights and those rights have not already
+been granted under another license. CodEz is proprietary, not open-source
+software under this license.
+
+2. Public viewing
+The public may inspect the source code and documentation for informational
+purposes through the public GitHub repository. No additional permission
+to use the software is granted by this license.
+
+3. Reserved rights
+Except with prior express written permission from AuxiaCorp, under applicable
+law, or under rights separately granted as described below, no person may:
+(a) install, execute, deploy, host, or otherwise use the software;
+(b) reproduce or redistribute the software or its substantial portions;
+(c) modify, translate, adapt, or create derivative works;
+(d) incorporate the software into another product or service;
+(e) sell, rent, sublicense, or commercially or noncommercially distribute it;
+(f) remove copyright, license, or attribution notices;
+(g) use protected source material for model training or fine-tuning.
+
+These restrictions apply to source and binary forms alike. Access to a public
+repository, download link, or release does not itself grant a software-use
+license. AuxiaCorp may separately authorize specific users and uses in writing.
+No trademark or branding rights are granted.
+
+4. Exceptions and existing rights
+This license does not restrict rights that cannot lawfully be restricted.
+It does not override GitHub's Terms of Service, including the rights to view
+and fork public repositories through GitHub's functionality.
+Third-party materials retain their own applicable licenses.
+Previously granted MIT permissions remain effective for copies and portions
+covered by those grants. This notice does not retroactively revoke them.
+The historical MIT notice below is retained for those materials; it does not
+grant MIT permission for subsequent proprietary additions.
+
+5. Disclaimer
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS",
+WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. AUXIACORP SHALL NOT BE
+LIABLE FOR CLAIMS OR DAMAGES ARISING FROM THE SOFTWARE OR ITS USE EXCEPT WHERE
+LIABILITY CANNOT LAWFULLY BE EXCLUDED.
+
+6. Permission requests
+Contact the repository owner via https://github.com/rollzian.
+
+------------------------------------------------------------------------
+Historical license notice for previously MIT-licensed materials
+------------------------------------------------------------------------
+
 MIT License
 
 Copyright (c) 2026 AuxiaCorp

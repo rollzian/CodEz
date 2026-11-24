@@ -1,50 +1,37 @@
 <div align="center">
 
-# C O D E Z
+# CodEz
 
-**Your terminal. Your models. Your code.**
+### Your terminal. Your models. Your code.
 
-An interactive AI coding agent for Linux, with a keyboard-first interface, local conversations and optional Auxia collaboration.
+A keyboard-first coding agent by **AuxiaCorp**.
 
+[![Source viewing only](https://img.shields.io/badge/LICENSE-PROPRIETARY-8B5CF6?style=flat-square)](LICENSE)
 [![CI](https://github.com/rollzian/CodEz/actions/workflows/ci.yml/badge.svg)](https://github.com/rollzian/CodEz/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/rollzian/CodEz?include_prereleases&style=flat-square&color=8b5cf6)](https://github.com/rollzian/CodEz/releases)
-[![License](https://img.shields.io/github/license/rollzian/CodEz?style=flat-square)](LICENSE)
+[![Published release](https://img.shields.io/github/v/release/rollzian/CodEz?include_prereleases&style=flat-square&color=8b5cf6)](https://github.com/rollzian/CodEz/releases)
+[![Platform](https://img.shields.io/badge/PLATFORM-LINUX-555555?style=flat-square)](#the-interface)
 
-[**Download**](https://github.com/rollzian/CodEz/releases) · [Quick start](#quick-start) · [Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Cloud](#auxia-cloud)
+[Capabilities](#capabilities) · [Interface](#the-interface) · [Architecture](#architecture) · [Cloud](#auxia-cloud) · [License](#license)
 
 </div>
 
 ---
 
-## Quick start
+> [!IMPORTANT]
+> **Proprietary software. Public source viewing only.**
+> Copyright © 2026 AuxiaCorp. All rights reserved. No new permission to install, run, modify, redistribute or commercialize CodEz is granted to the public. Separate written authorization is required, subject to applicable law, GitHub's terms and previously granted licenses.
 
-<table>
-<tr><th align="left">Arch Linux</th><th align="left">Debian / Ubuntu · amd64</th></tr>
-<tr><td>
+## Project overview
 
-```bash
-git clone https://github.com/rollzian/CodEz.git
-cd CodEz
-makepkg -si
-codez
-```
+CodEz combines local repository tools, model discovery, streaming responses, persistent conversations and optional team collaboration in one terminal application.
 
-</td><td>
+| Current published build | Language | Interface |
+| :--- | :--- | :--- |
+| **0.7.7 / #1h-1** | Go | Linux TUI |
 
-```bash
-curl -fLO https://github.com/rollzian/CodEz/releases/download/1h-1/codez.1h-1.deb
-sudo apt install ./codez.1h-1.deb
-codez
-```
+This published build is a release candidate. The repository is available for inspection; releases published under the previous MIT license retain their original terms.
 
-</td></tr>
-</table>
-
-On first launch, select a provider, authenticate and choose a model from the discovered catalog. No separate configuration command is required.
-
-> Current published release: **0.7.7 · #1h-1** (release candidate). Native Arch installation and live account authorization have not been independently verified.
-
-## Features
+## Capabilities
 
 | Code | Navigate | Collaborate |
 | :--- | :--- | :--- |
@@ -53,7 +40,7 @@ On first launch, select a provider, authenticate and choose a model from the dis
 | Run approved shell commands | Command palette and history | Invitations and friend requests |
 | Review Git changes | Local Skills library | Public project directory |
 
-## A terminal built around your workflow
+## The interface
 
 ```text
   CODEZ                              workspace / main
@@ -126,7 +113,7 @@ Repository tools: list, search, read, atomic write, exact text replacement, Git 
 
 This is a release candidate, not a complete production-ready implementation. Live external provider credentials, MCP, automated deployment adapters, full context compaction and Arch installation are not verified or not implemented. Local tests cover SSE decoding for all three protocols; the smoke test exercises a deterministic HTTP provider and actual file changes, not a paid external API.
 
-## Navigation and local chats
+### Navigation and local chats
 
 The interactive terminal clears on startup and shows the current Git branch when available. It restores the active local conversation (up to 80 recent events). `←` on empty input opens Chats; `→` returns from the list. `Ctrl+←/→/↑/↓` open Workspaces, Teams, Friends and Public Projects. `Ctrl+K` opens the palette, `Ctrl+N` creates a chat, `Ctrl+P` opens models, `Ctrl+H` on empty input opens prompt history, `Ctrl+F` searches chat titles, `Ctrl+S` flushes the current chat, `Ctrl+L` clears, `Ctrl+R` recalls a previous prompt, and `Shift+Tab` cycles modes. Arrow keys edit nonempty input. Bracketed paste preserves newlines in the submitted prompt; the editor displays a single horizontally scrolling line. `/chats` lists up to 500 recent chats in the current workspace. Drafts survive panel switches during the running process; they are not synced or persisted across restarts. `CODEZ_SIMPLE_UI=1` retains line input and numbered menus.
 
@@ -150,7 +137,9 @@ Local smoke: `python3 cloud/app.py` binds to `127.0.0.1:8088`. For public deploy
 
 Verify with `python3 -m unittest discover -s cloud` and `go test ./...`. Local tests simulate the identity provider; live Auxia sign-in requires server deployment and a registered client.
 
-## Development
+## Authorized development
+
+The following commands are for the rights holder and users with separate permission.
 
 ```bash
 go vet ./...
@@ -171,14 +160,33 @@ bash scripts/build-deb.sh
 | [cloud](cloud) | Optional collaboration backend |
 | [scripts](scripts) | Packaging and smoke tests |
 
-## Roadmap
+## Project status
 
-MCP execution, automated deployment adapters, full context compaction and production Auxia integration remain unfinished in this published version.
+MCP execution, automated deployment adapters, full context compaction and production Auxia integration remain unfinished in the published build. Live provider authentication and native Arch installation have not been independently verified.
+
+## License
+
+**CodEz Proprietary Source-Viewing License**
+
+| Public access | Permission under the new license |
+| :--- | :--- |
+| Read source and documentation on GitHub | Allowed |
+| Install, execute or deploy | Written permission required |
+| Modify or redistribute | Written permission required |
+| Commercial or noncommercial reuse | Written permission required |
+
+This table summarizes the new license, not the rights previously granted under MIT or GitHub's Terms of Service. GitHub permits users to view and fork public repositories through its service. The new license does not withdraw existing MIT permissions or change third-party licenses.
+
+Read the complete [LICENSE](LICENSE) for the governing terms. Contact [the repository owner](https://github.com/rollzian) for permission requests.
 
 ---
 
 <div align="center">
 
-**CodEz** · [Releases](https://github.com/rollzian/CodEz/releases) · [Issues](https://github.com/rollzian/CodEz/issues) · [MIT License](LICENSE)
+**CodEz / AuxiaCorp**
+
+[Repository](https://github.com/rollzian/CodEz) · [Release history](https://github.com/rollzian/CodEz/releases) · [License](LICENSE)
+
+Copyright © 2026 AuxiaCorp. All rights reserved.
 
 </div>
