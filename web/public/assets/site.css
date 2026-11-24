@@ -31,3 +31,5 @@ footer{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:cen
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.terminal{transform:none}}
 :root[data-motion=reduce] *, :root[data-motion=reduce] *::before,:root[data-motion=reduce] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
+
+[hidden]{display:none!important}

@@ -1,0 +1,42 @@
+name: Web CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: codez_test
+          POSTGRES_USER: codez_test
+          POSTGRES_PASSWORD: codez_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      CODEZ_WEB_DSN: pgsql:host=127.0.0.1;port=5432;dbname=codez_test
+      CODEZ_WEB_DB_USER: codez_test
+      CODEZ_WEB_DB_PASSWORD: codez_test
+      PGPASSWORD: codez_test
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          php -v
+          php -r 'exit(version_compare(PHP_VERSION,"8.3",">=")?0:1);'
+          php -m | grep -i pdo_pgsql
+          find web -name '*.php' -print0 | xargs -0 -n1 php -l
+          php web/tests/releases.php
+          node --check web/public/assets/site.js
+      - run: psql -h 127.0.0.1 -U codez_test -d codez_test -v ON_ERROR_STOP=1 -f web/db/001_marketplace.sql
+      - run: php web/tests/marketplace.php
+      - run: |
+          php -S 127.0.0.1:8091 -t web/public web/public/index.php > /tmp/codez-web.log 2>&1 &
+          trap 'kill $! 2>/dev/null || true' EXIT
+          curl --retry 5 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:8091/ | grep 'Make space'
+          for path in docs source ai login dashboard marketplace marketplace/skills marketplace/plugins marketplace/mcp; do
+            curl -fsS "http://127.0.0.1:8091/$path" > /dev/null
+          done
+          curl -fsS http://127.0.0.1:8091/api/v1 | grep '/codez-cloud/v1'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8091/downloads/codez%231a-v1.deb)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8091/admin)" = 403
