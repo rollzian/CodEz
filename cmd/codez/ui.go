@@ -52,8 +52,8 @@ func (c console) banner(root string) {
 	}
 	fmt.Fprintln(c.out)
 	fmt.Fprintln(c.out, "  "+c.style(accent, "╭━━╮")+"  "+c.style("1", "CodEz")+"  "+c.style(muted, "#"+build+"-"+release))
-	fmt.Fprintln(c.out, "  "+c.style(accent, "╰━╸╱")+"  "+c.style(muted, "Your terminal. Your codebase."))
-	fmt.Fprintln(c.out, "  "+c.style(muted, "Workspace")+"  "+clean(root))
+	fmt.Fprintln(c.out, "  "+c.style(accent, "╰━╸╱")+"  "+c.style(muted, "CODE  /  BUILD  /  COLLABORATE"))
+	fmt.Fprintln(c.out, "  "+c.style(muted, "Local workspace")+"  "+clean(root))
 	fmt.Fprintln(c.out)
 }
 
@@ -68,11 +68,11 @@ func (c console) prompt() string {
 	if !c.rich {
 		return "codez › "
 	}
-	return "\n  " + c.style(accent, "❯") + " "
+	return "\n  " + c.style(muted, "╭─") + " " + c.style("1", "Ask CodEz") + "\n  " + c.style(accent, "╰─❯") + " "
 }
 func (c console) help() {
 	c.section("Commands")
-	for _, row := range [][2]string{{"/models [filter]", "Browse and switch models"}, {"/model", "Open model library"}, {"/setup", "Configure provider"}, {"/status", "Show current session"}, {"/resume", "Restore recent messages"}, {"/new", "Start a fresh context"}, {"/clear", "Clear the terminal"}, {"/exit", "Close CodEz"}} {
+	for _, row := range [][2]string{{"/menu", "Open command palette"}, {"/models [filter]", "Browse and switch models"}, {"/model", "Open model library"}, {"/setup", "Configure provider"}, {"/auxia", "Workspaces, teams, friends and public projects"}, {"/status", "Show current session"}, {"/resume", "Restore recent messages"}, {"/new", "Start a fresh context"}, {"/clear", "Clear the terminal"}, {"/exit", "Close CodEz"}} {
 		fmt.Fprintf(c.out, "  %s %s\n", c.style(accent, fmt.Sprintf("%-19s", row[0])), row[1])
 	}
 }

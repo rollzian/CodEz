@@ -7,7 +7,7 @@ Terminal coding agent. One executable: `codez`.
 Debian (amd64):
 
 ```bash
-sudo apt install './codez#1f-1.deb'
+sudo apt install './codez#1g-1.deb'
 codez
 ```
 
@@ -38,3 +38,19 @@ Set `CODEZ_SIMPLE_UI=1` for numbered line-based selection. The terminal uses ANS
 Repository tools: list, search, read, atomic write, exact text replacement, Git status/diff and shell execution. File mutations and shell execution require approval; shell commands run with the current user's OS permissions, not in a sandbox. Only known unsafe command patterns are additionally blocked. Credentials use a private `0600` file (not encrypted); `CODEZ_API_KEY` is accepted in noninteractive setup or by typing `:env` at the interactive key prompt. Saved credentials take priority on restart.
 
 This is a release candidate, not a complete production-ready implementation. Live external provider credentials, MCP, Skills loading, automated deployment adapters, full context compaction and Arch installation are not verified or not implemented. Local tests cover SSE decoding for all three protocols; the smoke test exercises a deterministic HTTP provider and actual file changes, not a paid external API.
+
+## Auxia Cloud
+
+`/menu` opens the command palette. `/auxia` opens the collaboration hub; `/workspaces`, `/teams`, `/friends`, and `/projects` open individual collections. `codez --auxia` is available without configuring an AI provider. Cloud sign-in opens an Auxia device-confirmation page in the browser. It does not send AI provider API keys to Auxia. The separate revocable Cloud session is stored in an owner-only file.
+
+Personal and team workspaces are persistent metadata, not remote execution environments or synchronized source trees. Teams use explicit invitations and acceptance. Friend requests require acceptance. Public projects publish a name and HTTPS repository link, not local files. Lists are limited to 200 items in this release.
+
+The included `cloud/app.py` is an independently deployable service backed by SQLite. It must be mounted at `https://auxia.space/codez-cloud`; the domain's existing authentication backend and OAuth client registration were unavailable for live integration. No new Auxia password database is created. The service uses the existing identity provider's authorization-code + PKCE and authenticated userinfo endpoints. Register the callback `https://auxia.space/codez-cloud/oauth/callback` in that provider and configure the following server-only environment variables:
+
+- `CODEZ_CLOUD_DB`: absolute path to a private database outside the public web root.
+- `AUXIA_OAUTH_AUTHORIZE`, `AUXIA_OAUTH_TOKEN`, `AUXIA_OAUTH_USERINFO`: actual HTTPS endpoints from the Auxia identity provider.
+- `AUXIA_OAUTH_CLIENT_ID`, `AUXIA_OAUTH_CLIENT_SECRET` (if required), `AUXIA_OAUTH_SCOPE` (default `openid profile`).
+
+Local smoke: `python3 cloud/app.py` binds to `127.0.0.1:8088`. For public deployment, serve `cloud.app:create_app()` with a production WSGI server, behind the existing HTTPS reverse proxy at `/codez-cloud/`. Rate-limit anonymous device-start and login requests at the reverse proxy; do not log query strings or authorization headers. Use a restricted OS account and back up the SQLite database. The built-in WSGI server is for local testing only.
+
+Verify with `python3 -m unittest discover -s cloud` and `go test ./...`. Local tests simulate the identity provider; live Auxia sign-in requires server deployment and a registered client.

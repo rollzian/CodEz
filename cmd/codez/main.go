@@ -21,9 +21,9 @@ import (
 	"github.com/AuxiaCorp/CodEz/internal/tools"
 )
 
-var version = "0.7.5"
+var version = "0.7.6"
 
-var build = "1f"
+var build = "1g"
 var release = "1"
 
 type console struct {
@@ -302,11 +302,13 @@ func (c console) turn(ctx context.Context, p provider.Provider, r *tools.Registr
 func run() error {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "--auxia":
+			return newConsole(os.Stdin, os.Stdout).auxiaHub("")
 		case "--version", "-v":
 			fmt.Printf("CodEz %s (#%s-%s)\n", version, build, release)
 			return nil
 		case "--help", "-h":
-			fmt.Println("codez - interactive coding agent\nUsage: codez [--version|--help]")
+			fmt.Println("codez - interactive coding agent\nUsage: codez [--version|--help|--auxia]")
 			return nil
 		default:
 			return errors.New("unknown argument; run codez --help")
@@ -354,7 +356,7 @@ func run() error {
 	p := createProvider(cfg, key)
 	ms := []provider.Message{{Role: "system", Content: instructions(r)}}
 	c.status(cfg, 0)
-	c.note("/help for commands")
+	c.note("/menu · command palette   /auxia · collaboration   /help")
 	for {
 		line, e := c.ask(c.prompt())
 		if errors.Is(e, io.EOF) {
@@ -366,9 +368,31 @@ func run() error {
 		if line == "" {
 			continue
 		}
+		if line == "/menu" {
+			actions := []string{"/model", "/setup", "/auxia", "/status", "/resume", "/new", "/exit"}
+			choice, err := c.selectMenu("Command palette", "Navigate your CodEz workspace", []string{"Model library", "Provider settings", "Auxia Cloud", "Session status", "Restore session", "Start new conversation", "Exit CodEz"}, false)
+			if err != nil {
+				c.note(err.Error())
+				continue
+			}
+			index, err := strconv.Atoi(choice)
+			if err != nil || index < 1 || index > len(actions) {
+				continue
+			}
+			line = actions[index-1]
+		}
 		switch line {
 		case "/exit", "/quit":
 			return nil
+		case "/auxia", "/workspaces", "/teams", "/friends", "/projects":
+			section := strings.TrimPrefix(line, "/")
+			if section == "auxia" {
+				section = ""
+			}
+			if err := c.auxiaHub(section); err != nil {
+				c.failure(err.Error())
+			}
+			continue
 		case "/help":
 			c.help()
 			continue

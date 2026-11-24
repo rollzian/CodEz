@@ -60,7 +60,7 @@ func (c console) selectMenu(title, subtitle string, items []string, actions bool
 	fmt.Fprint(c.out, "\x1b[?1049h\x1b[?25l")
 	focus := 0
 	first := 0
-	count := max(1, height-8)
+	count := max(1, height-9)
 	for {
 		if focus < first {
 			first = focus
@@ -122,7 +122,7 @@ func (c console) drawMenu(title, subtitle string, items []string, actions bool, 
 	b.WriteString(c.style("1", "CodEz"))
 	b.WriteString("   ")
 	b.WriteString(c.style(muted, "#"+build+"-"+release))
-	b.WriteString("\n\n  ")
+	b.WriteString("\n  " + c.style(muted, strings.Repeat("─", max(1, min(width-4, 72)))) + "\n\n  ")
 	b.WriteString(c.style("1", clipLine(title, width-4)))
 	b.WriteString("\n  ")
 	b.WriteString(c.style(muted, clipLine(subtitle, width-4)))
@@ -131,13 +131,13 @@ func (c console) drawMenu(title, subtitle string, items []string, actions bool, 
 		prefix := "    "
 		label := clipLine(items[i], width-6)
 		if i == focus {
-			prefix = "  ❯ "
+			prefix = "  ▌ "
 			label = c.style("1;"+accent, label)
 		}
 		b.WriteString(prefix + label + "\n")
 	}
 	if len(items) == 0 {
-		b.WriteString("    No matching models\n")
+		b.WriteString("    No items\n")
 	}
 	hint := "↑ ↓ Navigate   Enter Select   Esc Back"
 	if actions {
