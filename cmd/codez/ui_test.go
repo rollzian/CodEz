@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -46,5 +47,21 @@ func TestModelSelection(t *testing.T) {
 	}
 	if got, err := modelSelection("custom/model", ids); got != "custom/model" || err != nil {
 		t.Fatal(got, err)
+	}
+}
+
+func TestSetupAPIKeyAndCustom(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("CODEZ_API_KEY", "secret-test")
+	for _, tc := range []struct{ input, provider, endpoint string }{{"1\n2\ntest-model\n", "openai", "https://api.openai.com/v1"}, {"2\n2\ntest-model\n", "anthropic", "https://api.anthropic.com"}, {"3\nhttps://example.invalid/v1\ntest-model\n", "compatible", "https://example.invalid/v1"}, {"6\n2\ntest-model\n", "compatible", "https://openrouter.ai/api/v1"}} {
+		var out bytes.Buffer
+		c := console{in: bufio.NewReader(strings.NewReader(tc.input)), out: &out}
+		cfg, key, e := c.setup()
+		if e != nil || cfg.Provider != tc.provider || cfg.BaseURL != tc.endpoint || key != "secret-test" || cfg.Auth != "api_key" {
+			t.Fatal(cfg, e)
+		}
+		if strings.Contains(out.String(), key) {
+			t.Fatal("key leaked")
+		}
 	}
 }

@@ -7,7 +7,7 @@ Terminal coding agent. One executable: `codez`.
 Debian (amd64):
 
 ```bash
-sudo apt install './codez#1c-1.deb'
+sudo apt install './codez#1d-1.deb'
 codez
 ```
 
@@ -31,7 +31,7 @@ bash scripts/build-deb.sh
 
 ## Usage
 
-Configure a provider and model on first launch. Supported protocols: OpenAI Responses, Anthropic Messages and OpenAI-compatible Chat Completions (including local endpoints). Press Enter at the model prompt to discover and select a model. `/models [filter]` discovers and filters exposed model IDs; `/model <id>` changes models; `/setup` reconfigures; `/resume` loads recent history; `/new` starts a fresh context. `/status` shows the current model and session; `/clear` redraws the terminal.
+Configure a provider and model on first launch. OpenAI and OpenRouter offer account sign-in or API-key authentication. ChatGPT sign-in prints an official authorization URL and receives the callback on loopback; use the browser on the same machine. It uses an eligible ChatGPT plan, not a free API entitlement. OpenRouter sign-in prints a PKCE authorization URL and accepts the one-time code. Claude Console sign-in is a browser link for creating an API key; Claude subscription OAuth is not implemented. Custom providers require an OpenAI-compatible base URL and API key (empty for unauthenticated local servers). ChatGPT credentials are stored separately in an owner-only file, with refresh before requests. Live account authorization has not been verified; OAuth protocol tests use deterministic local fixtures. Supported protocols: OpenAI Responses, Anthropic Messages and OpenAI-compatible Chat Completions (including local endpoints). Press Enter at the model prompt to discover and select a model. `/models [filter]` discovers and filters exposed model IDs; `/model <id>` changes models; `/setup` reconfigures; `/resume` loads recent history; `/new` starts a fresh context. `/status` shows the current model and session; `/clear` redraws the terminal.
 
 The terminal uses ANSI styling and live tool progress when attached to a TTY. Model responses stream via SSE by default; `CODEZ_NO_STREAM=1` selects non-streaming requests. `NO_COLOR=1` disables colors and animated progress; `CODEZ_NO_MOTION=1` disables animation only. Redirected output is free of ANSI formatting.
 

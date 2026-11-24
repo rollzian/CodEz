@@ -13,15 +13,16 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/AuxiaCorp/CodEz/internal/auth"
 	"github.com/AuxiaCorp/CodEz/internal/config"
 	"github.com/AuxiaCorp/CodEz/internal/provider"
 	"github.com/AuxiaCorp/CodEz/internal/session"
 	"github.com/AuxiaCorp/CodEz/internal/tools"
 )
 
-var version = "0.7.2"
+var version = "0.7.3"
 
-var build = "1c"
+var build = "1d"
 var release = "1"
 
 type console struct {
@@ -42,6 +43,9 @@ func (c console) secret() (string, error) {
 	if s := os.Getenv("CODEZ_API_KEY"); s != "" {
 		return s, nil
 	}
+	return c.hiddenInput("API key (empty for local endpoint): ")
+}
+func (c console) hiddenInput(label string) (string, error) {
 	if st, e := os.Stdin.Stat(); e == nil && st.Mode()&os.ModeCharDevice != 0 {
 		cmd := exec.Command("stty", "-echo")
 		cmd.Stdin = os.Stdin
@@ -50,15 +54,15 @@ func (c console) secret() (string, error) {
 		}
 		defer func() { cmd := exec.Command("stty", "echo"); cmd.Stdin = os.Stdin; _ = cmd.Run(); fmt.Fprintln(c.out) }()
 	}
-	return c.ask("API key (empty for local endpoint): ")
+	return c.ask(label)
 }
 func (c console) setup() (config.Config, string, error) {
 	var cfg config.Config
 	c.section("Choose a provider")
-	for i, name := range []string{"OpenAI", "Anthropic", "OpenAI-compatible / OpenRouter", "Ollama", "LM Studio"} {
+	for i, name := range []string{"OpenAI", "Anthropic", "Custom Provider (OpenAI-compatible)", "Ollama", "LM Studio", "OpenRouter"} {
 		fmt.Fprintf(c.out, "  %s  %s\n", c.style(accent, fmt.Sprint(i+1)), name)
 	}
-	v, e := c.ask("Select [1-5]: ")
+	v, e := c.ask("Select [1-6]: ")
 	if e != nil {
 		return cfg, "", e
 	}
@@ -78,15 +82,95 @@ func (c console) setup() (config.Config, string, error) {
 	case "5":
 		cfg.Provider = "compatible"
 		cfg.BaseURL = "http://127.0.0.1:1234/v1"
+	case "6":
+		cfg.Provider = "compatible"
+		cfg.BaseURL = "https://openrouter.ai/api/v1"
 	default:
 		return cfg, "", errors.New("unknown provider")
 	}
 	if e != nil {
 		return cfg, "", e
 	}
-	cfg.Model, e = c.ask("Model ID (Enter to discover): ")
-	if e != nil {
+	var key string
+	cfg.Auth = "api_key"
+	cfg.Model = "discovery"
+	if e = cfg.Validate(); e != nil {
 		return cfg, "", e
+	}
+	// Keep the custom endpoint and local server setup independent from account credentials.
+	if v == "1" || v == "2" || v == "6" {
+		c.section("Authentication")
+		label := "Sign in with provider account"
+		if v == "2" {
+			label = "Open Claude Console (API key required)"
+		}
+		fmt.Fprintln(c.out, "  "+c.style(accent, "1")+"  "+label)
+		fmt.Fprintln(c.out, "  "+c.style(accent, "2")+"  Enter API key")
+		method, err := c.ask("Select [1-2]: ")
+		if err != nil {
+			return cfg, "", err
+		}
+		switch method {
+		case "1":
+			switch v {
+			case "1":
+				c.note("Continue with ChatGPT. Eligible plans only; usage counts toward your plan.")
+				ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+				defer stop()
+				ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+				defer cancel()
+				a, err := config.LoginChatGPT(ctx, func(link string) {
+					fmt.Fprintln(c.out, "\nOpen this link in your browser:\n"+link+"\n\nWaiting for authorization (Ctrl+C to cancel)...")
+				}, false)
+				if err != nil {
+					return cfg, "", err
+				}
+				key = a.AccessToken
+				cfg.Auth = "chatgpt"
+				c.success("Signed in: " + clean(a.Email))
+			case "6":
+				ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+				defer stop()
+				key, err = auth.New().LoginOpenRouter(ctx, func(link string) { fmt.Fprintln(c.out, "\nOpen this link in your browser:\n"+link) }, func() (string, error) { return c.hiddenInput("Authorization code: ") })
+				if err != nil {
+					return cfg, "", err
+				}
+				cfg.Auth = "openrouter"
+			case "2":
+				c.note("Sign in to Claude Console: https://platform.claude.com/settings/keys")
+				c.note("Claude subscription login is not available for CodEz. Create an API key in Console to continue.")
+				key, err = c.secret()
+				if err != nil {
+					return cfg, "", err
+				}
+			}
+		case "2":
+			key, err = c.secret()
+			if err != nil {
+				return cfg, "", err
+			}
+		default:
+			return cfg, "", errors.New("unknown authentication method")
+		}
+	} else {
+		// Preserve the existing custom/local setup input order.
+		cfg.Model, e = c.ask("Model ID (Enter to discover): ")
+		if e != nil {
+			return cfg, "", e
+		}
+		key, e = c.secret()
+		if e != nil {
+			return cfg, "", e
+		}
+	}
+	if key == "" && (v == "1" || v == "2" || v == "6") {
+		return cfg, "", errors.New("API key or account authorization required")
+	}
+	if v == "1" || v == "2" || v == "6" {
+		cfg.Model, e = c.ask("Model ID (Enter to discover): ")
+		if e != nil {
+			return cfg, "", e
+		}
 	}
 	discover := cfg.Model == ""
 	if discover {
@@ -94,13 +178,6 @@ func (c console) setup() (config.Config, string, error) {
 	}
 	if e = cfg.Validate(); e != nil {
 		return cfg, "", e
-	}
-	key, e := c.secret()
-	if e != nil {
-		return cfg, "", e
-	}
-	if key == "" && cfg.Provider != "compatible" {
-		return cfg, "", errors.New("API key required")
 	}
 	if discover {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -132,7 +209,9 @@ func (c console) setup() (config.Config, string, error) {
 func createProvider(c config.Config, key string) provider.Provider {
 	switch c.Provider {
 	case "openai":
-		return provider.NewOpenAI(c.BaseURL, key, c.Model)
+		p := provider.NewOpenAI(c.BaseURL, key, c.Model)
+		p.AccountMode = c.Auth == "chatgpt"
+		return p
 	case "anthropic":
 		return provider.NewAnthropic(c.BaseURL, key, c.Model)
 	default:
@@ -270,6 +349,18 @@ func run() error {
 			fmt.Fprintln(c.out, "Invalid configuration. Reconfigure to continue.")
 		}
 		cfg, key, e = c.setup()
+	} else if cfg.Auth == "chatgpt" {
+		key, e = config.ChatGPTKey(context.Background())
+		if e != nil {
+			c.failure("ChatGPT session unavailable. Sign in again.")
+			cfg, key, e = c.setup()
+		}
+	} else if cfg.Auth == "openrouter" {
+		key, e = config.OpenRouterKey()
+		if e != nil {
+			c.failure("OpenRouter credentials unavailable. Sign in again.")
+			cfg, key, e = c.setup()
+		}
 	} else {
 		key = os.Getenv("CODEZ_API_KEY")
 		if key == "" {
@@ -346,6 +437,15 @@ func run() error {
 			continue
 		}
 		if line == "/models" || strings.HasPrefix(line, "/models ") {
+			if cfg.Auth == "chatgpt" {
+				fresh, err := config.ChatGPTKey(context.Background())
+				if err != nil {
+					c.failure("ChatGPT session unavailable. Use /setup.")
+					continue
+				}
+				key = fresh
+				p = createProvider(cfg, key)
+			}
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			stop := c.progress("Discovering models")
 			ids, err := provider.Models(ctx, p)
@@ -377,6 +477,15 @@ func run() error {
 		if len(ms) > 81 {
 			c.failure("Context limit reached; use /new or /resume.")
 			continue
+		}
+		if cfg.Auth == "chatgpt" {
+			fresh, err := config.ChatGPTKey(context.Background())
+			if err != nil {
+				c.failure("ChatGPT session unavailable. Use /setup.")
+				continue
+			}
+			key = fresh
+			p = createProvider(cfg, key)
 		}
 		ms = append(ms, provider.Message{Role: "user", Content: line})
 		if e = s.Append("user", redact(line, key)); e != nil {

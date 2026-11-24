@@ -45,3 +45,11 @@ func TestValidate(t *testing.T) {
 		}
 	}
 }
+
+func TestOAuthEndpointBinding(t *testing.T) {
+	for _, c := range []Config{{Provider: "openai", BaseURL: "https://example.com/v1", Model: "x", Auth: "chatgpt"}, {Provider: "compatible", BaseURL: "https://example.com/v1", Model: "x", Auth: "openrouter"}} {
+		if c.Validate() == nil {
+			t.Fatal("OAuth token could go to a custom endpoint")
+		}
+	}
+}

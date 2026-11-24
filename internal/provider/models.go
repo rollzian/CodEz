@@ -13,6 +13,26 @@ func Models(ctx context.Context, p Provider) ([]string, error) {
 	var h *HTTPClient
 	switch v := p.(type) {
 	case *OpenAI:
+		if v.AccountMode {
+			var catalog struct {
+				Models []struct {
+					Slug       string `json:"slug"`
+					Visibility string `json:"visibility"`
+				} `json:"models"`
+			}
+			if err := v.HTTP.JSON(ctx, "GET", v.BaseURL+"/models", v.headers(), nil, &catalog); err != nil {
+				return nil, err
+			}
+			ids := []string{}
+			seen := map[string]bool{}
+			for _, m := range catalog.Models {
+				if m.Visibility == "list" && m.Slug != "" && !seen[m.Slug] {
+					ids = append(ids, m.Slug)
+					seen[m.Slug] = true
+				}
+			}
+			return ids, nil
+		}
 		endpoint = v.BaseURL + "/models"
 		headers = v.headers()
 		h = v.HTTP

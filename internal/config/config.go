@@ -14,6 +14,7 @@ type Config struct {
 	Provider string `json:"provider"`
 	BaseURL  string `json:"base_url"`
 	Model    string `json:"model"`
+	Auth     string `json:"auth,omitempty"`
 }
 
 func Dir() (string, error) {
@@ -32,6 +33,19 @@ func (c Config) Validate() error {
 	case "openai", "anthropic", "compatible":
 	default:
 		return errors.New("invalid provider")
+	}
+	switch c.Auth {
+	case "", "api_key":
+	case "chatgpt":
+		if c.Provider != "openai" || c.BaseURL != "https://api.openai.com/v1" {
+			return errors.New("ChatGPT authorization requires the official OpenAI API endpoint")
+		}
+	case "openrouter":
+		if c.Provider != "compatible" || c.BaseURL != "https://openrouter.ai/api/v1" {
+			return errors.New("OpenRouter authorization requires the official OpenRouter API endpoint")
+		}
+	default:
+		return errors.New("invalid authentication method")
 	}
 	if strings.TrimSpace(c.Model) == "" {
 		return errors.New("model is required")
@@ -99,6 +113,9 @@ func atomic(d, n string, b []byte) error {
 	return os.Rename(f.Name(), filepath.Join(d, n))
 }
 func Save(c Config, key string) error {
+	if c.Auth == "chatgpt" {
+		return SaveSettings(c)
+	}
 	if e := c.Validate(); e != nil {
 		return e
 	}
@@ -110,8 +127,36 @@ func Save(c Config, key string) error {
 	if e != nil {
 		return e
 	}
-	if e = atomic(d, "secret", []byte(key)); e != nil {
+	name := "secret"
+	if c.Auth == "openrouter" {
+		name = "openrouter-secret"
+	}
+	if e = atomic(d, name, []byte(key)); e != nil {
 		return fmt.Errorf("save credentials: %w", e)
 	}
 	return atomic(d, "config.json", b)
+}
+
+func SaveSettings(c Config) error {
+	if err := c.Validate(); err != nil {
+		return err
+	}
+	d, err := Dir()
+	if err != nil {
+		return err
+	}
+	b, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		return err
+	}
+	return atomic(d, "config.json", b)
+}
+
+func OpenRouterKey() (string, error) {
+	d, err := Dir()
+	if err != nil {
+		return "", err
+	}
+	b, err := privateRead(d, "openrouter-secret")
+	return string(b), err
 }

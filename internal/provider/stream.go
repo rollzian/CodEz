@@ -27,7 +27,10 @@ type streamDecoder func(io.Reader, func(string)) (map[string]any, error)
 func (h *HTTPClient) modelJSON(ctx context.Context, url string, headers map[string]string, body map[string]any, decoder streamDecoder, out *map[string]any) error {
 	callback := textStream(ctx)
 	if callback == nil {
-		return h.JSON(ctx, "POST", url, headers, body, out)
+		if body["stream"] != true {
+			return h.JSON(ctx, "POST", url, headers, body, out)
+		}
+		callback = func(string) {}
 	}
 	body["stream"] = true
 	return h.request(ctx, "POST", url, headers, body, func(resp *http.Response) error {

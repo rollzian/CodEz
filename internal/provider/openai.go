@@ -8,10 +8,11 @@ import (
 )
 
 type OpenAI struct {
-	BaseURL string
-	APIKey  string
-	Model   string
-	HTTP    *HTTPClient
+	BaseURL     string
+	APIKey      string
+	Model       string
+	HTTP        *HTTPClient
+	AccountMode bool
 }
 
 func NewOpenAI(baseURL, key, model string) *OpenAI {
@@ -31,7 +32,7 @@ func toolPayload(t ToolDef) map[string]any {
 }
 
 func (p *OpenAI) Complete(ctx context.Context, messages []Message, tools []ToolDef) (Result, error) {
-	input := make([]map[string]any, 0, len(messages))
+	input := make([]any, 0, len(messages))
 	for _, m := range messages {
 		input = append(input, map[string]any{"role": m.Role, "content": m.Content})
 	}
@@ -40,9 +41,17 @@ func (p *OpenAI) Complete(ctx context.Context, messages []Message, tools []ToolD
 		tp = append(tp, toolPayload(t))
 	}
 	body := map[string]any{"model": p.Model, "input": input, "tools": tp, "tool_choice": "auto"}
+	if p.AccountMode {
+		body["store"] = false
+		body["stream"] = true
+		body["include"] = []string{"reasoning.encrypted_content"}
+	}
 	var raw map[string]any
 	if err := p.HTTP.modelJSON(ctx, p.BaseURL+"/responses", p.headers(), body, decodeResponsesStream, &raw); err != nil {
 		return Result{}, err
+	}
+	if p.AccountMode {
+		raw["_codez_input"] = input
 	}
 	return parseOpenAI(raw)
 }
@@ -53,7 +62,7 @@ func (p *OpenAI) Continue(ctx context.Context, messages []Message, tools []ToolD
 		return Result{}, fmt.Errorf("missing prior response")
 	}
 	id, _ := raw["id"].(string)
-	if id == "" {
+	if id == "" && !p.AccountMode {
 		return Result{}, fmt.Errorf("missing response id")
 	}
 	items := make([]map[string]any, 0, len(outputs))
@@ -65,9 +74,35 @@ func (p *OpenAI) Continue(ctx context.Context, messages []Message, tools []ToolD
 		tp = append(tp, toolPayload(t))
 	}
 	body := map[string]any{"model": p.Model, "previous_response_id": id, "input": items, "tools": tp}
+	if p.AccountMode {
+		history, ok := raw["_codez_input"].([]any)
+		if !ok {
+			return Result{}, fmt.Errorf("missing stateless response history")
+		}
+		output, ok := raw["output"].([]any)
+		if !ok {
+			return Result{}, fmt.Errorf("missing stateless response output")
+		}
+		input := append(append([]any(nil), history...), output...)
+		for _, call := range prior.ToolCalls {
+			out, ok := outputs[call.ID]
+			if !ok {
+				return Result{}, fmt.Errorf("missing tool result")
+			}
+			input = append(input, map[string]any{"type": "function_call_output", "call_id": call.ID, "output": out})
+		}
+		delete(body, "previous_response_id")
+		body["input"] = input
+		body["store"] = false
+		body["stream"] = true
+		body["include"] = []string{"reasoning.encrypted_content"}
+	}
 	var next map[string]any
 	if err := p.HTTP.modelJSON(ctx, p.BaseURL+"/responses", p.headers(), body, decodeResponsesStream, &next); err != nil {
 		return Result{}, err
+	}
+	if p.AccountMode {
+		next["_codez_input"] = body["input"]
 	}
 	return parseOpenAI(next)
 }
