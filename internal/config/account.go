@@ -100,6 +100,19 @@ func LoginChatGPT(ctx context.Context, show func(string), newAccount bool) (auth
 	return a, saveAccount(d, a)
 }
 func ChatGPTKey(ctx context.Context) (string, error) {
+	return chatGPTKey(ctx, "", auth.New().Refresh)
+}
+
+// RecoverChatGPTKey refreshes the rejected token even before its local expiry.
+// If another process already rotated it, use that replacement instead.
+func RecoverChatGPTKey(ctx context.Context, rejected string) (string, error) {
+	if rejected == "" {
+		return "", errors.New("missing rejected account token")
+	}
+	return chatGPTKey(ctx, rejected, auth.New().Refresh)
+}
+
+func chatGPTKey(ctx context.Context, rejected string, refresh func(context.Context, auth.Account) (auth.Account, error)) (string, error) {
 	d, err := Dir()
 	if err != nil {
 		return "", err
@@ -113,8 +126,8 @@ func ChatGPTKey(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if time.Until(a.ExpiresAt) < 2*time.Minute {
-		a, err = auth.New().Refresh(ctx, a)
+	if time.Until(a.ExpiresAt) < 2*time.Minute || (rejected != "" && a.AccessToken == rejected) {
+		a, err = refresh(ctx, a)
 		if err != nil {
 			return "", err
 		}

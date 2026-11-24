@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -20,9 +21,9 @@ import (
 	"github.com/AuxiaCorp/CodEz/internal/tools"
 )
 
-var version = "0.7.3"
+var version = "0.7.4"
 
-var build = "1d"
+var build = "1e"
 var release = "1"
 
 type console struct {
@@ -58,38 +59,26 @@ func (c console) hiddenInput(label string) (string, error) {
 }
 func (c console) setup() (config.Config, string, error) {
 	var cfg config.Config
-	c.section("Choose a provider")
-	for i, name := range []string{"OpenAI", "Anthropic", "Custom Provider (OpenAI-compatible)", "Ollama", "LM Studio", "OpenRouter"} {
-		fmt.Fprintf(c.out, "  %s  %s\n", c.style(accent, fmt.Sprint(i+1)), name)
+	names := make([]string, len(providerPresets))
+	for i, p := range providerPresets {
+		names[i] = p.Name
 	}
-	v, e := c.ask("Select [1-6]: ")
+	v, e := c.selectMenu("01  /  Connect your provider", "Select an AI service or local model", names, false)
 	if e != nil {
 		return cfg, "", e
 	}
-	switch v {
-	case "1":
-		cfg.Provider = "openai"
-		cfg.BaseURL = "https://api.openai.com/v1"
-	case "2":
-		cfg.Provider = "anthropic"
-		cfg.BaseURL = "https://api.anthropic.com"
-	case "3":
-		cfg.Provider = "compatible"
-		cfg.BaseURL, e = c.ask("Base URL (including /v1 if required): ")
-	case "4":
-		cfg.Provider = "compatible"
-		cfg.BaseURL = "http://127.0.0.1:11434/v1"
-	case "5":
-		cfg.Provider = "compatible"
-		cfg.BaseURL = "http://127.0.0.1:1234/v1"
-	case "6":
-		cfg.Provider = "compatible"
-		cfg.BaseURL = "https://openrouter.ai/api/v1"
-	default:
+	n, e := strconv.Atoi(v)
+	if e != nil || n < 1 || n > len(providerPresets) {
 		return cfg, "", errors.New("unknown provider")
 	}
-	if e != nil {
-		return cfg, "", e
+	preset := providerPresets[n-1]
+	cfg.Provider = preset.Kind
+	cfg.BaseURL = preset.URL
+	if cfg.BaseURL == "" {
+		cfg.BaseURL, e = c.ask("  Endpoint (including /v1 if required): ")
+		if e != nil {
+			return cfg, "", e
+		}
 	}
 	var key string
 	cfg.Auth = "api_key"
@@ -99,14 +88,11 @@ func (c console) setup() (config.Config, string, error) {
 	}
 	// Keep the custom endpoint and local server setup independent from account credentials.
 	if v == "1" || v == "2" || v == "6" {
-		c.section("Authentication")
 		label := "Sign in with provider account"
 		if v == "2" {
 			label = "Open Claude Console (API key required)"
 		}
-		fmt.Fprintln(c.out, "  "+c.style(accent, "1")+"  "+label)
-		fmt.Fprintln(c.out, "  "+c.style(accent, "2")+"  Enter API key")
-		method, err := c.ask("Select [1-2]: ")
+		method, err := c.selectMenu("02  /  Authentication", preset.Name, []string{label, "Enter API key"}, false)
 		if err != nil {
 			return cfg, "", err
 		}
@@ -120,24 +106,25 @@ func (c console) setup() (config.Config, string, error) {
 				ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 				defer cancel()
 				a, err := config.LoginChatGPT(ctx, func(link string) {
-					fmt.Fprintln(c.out, "\nOpen this link in your browser:\n"+link+"\n\nWaiting for authorization (Ctrl+C to cancel)...")
+					c.browser(link)
+					c.note("Approve in the browser; authorization returns automatically. Ctrl+C cancels.")
 				}, false)
 				if err != nil {
 					return cfg, "", err
 				}
 				key = a.AccessToken
 				cfg.Auth = "chatgpt"
-				c.success("Signed in: " + clean(a.Email))
+				c.note("Account authorized: " + clean(a.Email))
 			case "6":
 				ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 				defer stop()
-				key, err = auth.New().LoginOpenRouter(ctx, func(link string) { fmt.Fprintln(c.out, "\nOpen this link in your browser:\n"+link) }, func() (string, error) { return c.hiddenInput("Authorization code: ") })
+				key, err = auth.New().LoginOpenRouter(ctx, c.browser, func() (string, error) { return c.hiddenInput("Paste the authorization code from OpenRouter: ") })
 				if err != nil {
 					return cfg, "", err
 				}
 				cfg.Auth = "openrouter"
 			case "2":
-				c.note("Sign in to Claude Console: https://platform.claude.com/settings/keys")
+				c.browser("https://platform.claude.com/settings/keys")
 				c.note("Claude subscription login is not available for CodEz. Create an API key in Console to continue.")
 				key, err = c.secret()
 				if err != nil {
@@ -153,52 +140,18 @@ func (c console) setup() (config.Config, string, error) {
 			return cfg, "", errors.New("unknown authentication method")
 		}
 	} else {
-		// Preserve the existing custom/local setup input order.
-		cfg.Model, e = c.ask("Model ID (Enter to discover): ")
-		if e != nil {
-			return cfg, "", e
-		}
 		key, e = c.secret()
 		if e != nil {
 			return cfg, "", e
 		}
 	}
-	if key == "" && (v == "1" || v == "2" || v == "6") {
+	if key == "" && !preset.Local && n != 3 {
 		return cfg, "", errors.New("API key or account authorization required")
 	}
-	if v == "1" || v == "2" || v == "6" {
-		cfg.Model, e = c.ask("Model ID (Enter to discover): ")
-		if e != nil {
-			return cfg, "", e
-		}
-	}
-	discover := cfg.Model == ""
-	if discover {
-		cfg.Model = "discovery"
-	}
-	if e = cfg.Validate(); e != nil {
+	c.section("03  /  Select your model")
+	cfg.Model, key, e = c.pickModel(cfg, key, "")
+	if e != nil {
 		return cfg, "", e
-	}
-	if discover {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		stop := c.progress("Discovering models")
-		ids, err := provider.Models(ctx, createProvider(cfg, key))
-		stop()
-		cancel()
-		if err != nil {
-			c.failure(redact(err.Error(), key))
-		}
-		if len(ids) > 0 {
-			c.showModels(ids, "", true)
-		}
-		input, err := c.ask("Model number or ID: ")
-		if err != nil {
-			return cfg, "", err
-		}
-		cfg.Model, err = modelSelection(input, ids)
-		if err != nil {
-			return cfg, "", err
-		}
 	}
 	if err := config.Save(cfg, key); err != nil {
 		return cfg, "", err
@@ -410,9 +363,6 @@ func run() error {
 			p = createProvider(cfg, key)
 			ms = ms[:1]
 			continue
-		case "/model":
-			fmt.Fprintln(c.out, clean(cfg.Model))
-			continue
 		case "/new":
 			ms = ms[:1]
 			if e = s.Append("reset", ""); e != nil {
@@ -436,7 +386,7 @@ func run() error {
 			fmt.Fprintf(c.out, "Restored %d messages\n", len(ms)-1)
 			continue
 		}
-		if line == "/models" || strings.HasPrefix(line, "/models ") {
+		if line == "/model" || line == "/models" || strings.HasPrefix(line, "/models ") {
 			if cfg.Auth == "chatgpt" {
 				fresh, err := config.ChatGPTKey(context.Background())
 				if err != nil {
@@ -444,18 +394,27 @@ func run() error {
 					continue
 				}
 				key = fresh
-				p = createProvider(cfg, key)
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			stop := c.progress("Discovering models")
-			ids, err := provider.Models(ctx, p)
-			stop()
-			cancel()
+			query := strings.TrimSpace(strings.TrimPrefix(line, "/models"))
+			if line == "/model" {
+				query = ""
+			}
+			model, fresh, err := c.pickModel(cfg, key, query)
+			key = fresh
+			p = createProvider(cfg, key)
 			if err != nil {
-				c.failure("Model discovery: " + redact(err.Error(), key))
-			} else {
-				c.showModels(ids, strings.TrimSpace(strings.TrimPrefix(line, "/models")), false)
+				c.failure(redact(err.Error(), key))
+				continue
 			}
+			next := cfg
+			next.Model = model
+			if err = config.SaveSettings(next); err != nil {
+				c.failure(redact(err.Error(), key))
+				continue
+			}
+			cfg = next
+			p = createProvider(cfg, key)
+			c.success("Model: " + clean(model))
 			continue
 		}
 		if strings.HasPrefix(line, "/model ") {
@@ -497,8 +456,19 @@ func run() error {
 		if e != nil {
 			if errors.Is(e, context.Canceled) {
 				c.note("Cancelled")
+			} else if provider.IsUnauthorized(e) && cfg.Auth == "chatgpt" {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				fresh, err := config.RecoverChatGPTKey(ctx, key)
+				cancel()
+				if err != nil {
+					c.failure(authMessage(e, cfg, key))
+				} else {
+					key = fresh
+					p = createProvider(cfg, key)
+					c.note("Session refreshed. Review any prior tool changes and retry your request.")
+				}
 			} else {
-				c.failure(redact(e.Error(), key))
+				c.failure(authMessage(e, cfg, key))
 			}
 			ms = ms[:len(ms)-1]
 			continue

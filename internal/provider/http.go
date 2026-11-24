@@ -6,14 +6,61 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
 type HTTPClient struct{ C *http.Client }
+
+type HTTPError struct {
+	Status          int
+	Code, RequestID string
+}
+
+func (e *HTTPError) Error() string {
+	message := fmt.Sprintf("provider HTTP %d", e.Status)
+	if e.Code != "" {
+		message += " (" + e.Code + ")"
+	}
+	if e.RequestID != "" {
+		message += " [request " + e.RequestID + "]"
+	}
+	return message
+}
+
+func diagnosticID(s string) string {
+	if len(s) > 128 || strings.ContainsAny(s, "\r\n\t ") {
+		return ""
+	}
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.') {
+			return ""
+		}
+	}
+	return s
+}
+func providerError(resp *http.Response) error {
+	err := &HTTPError{Status: resp.StatusCode, RequestID: diagnosticID(resp.Header.Get("x-request-id"))}
+	// Extract machine-readable codes only; never echo arbitrary error bodies or credentials.
+	var body struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if data, e := io.ReadAll(io.LimitReader(resp.Body, 16385)); e == nil && len(data) <= 16384 && json.Unmarshal(data, &body) == nil {
+		err.Code = diagnosticID(body.Error.Code)
+	}
+	return err
+}
+func IsUnauthorized(err error) bool {
+	var status *HTTPError
+	return errors.As(err, &status) && status.Status == http.StatusUnauthorized
+}
 
 func NewHTTPClient() *HTTPClient {
 	return &HTTPClient{C: &http.Client{Timeout: 90 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}}
@@ -71,6 +118,7 @@ func (h *HTTPClient) request(ctx context.Context, method, url string, headers ma
 			resp.Body.Close()
 			return err
 		}
+		failure := providerError(resp)
 		resp.Body.Close()
 		if (resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500) && attempt+1 < attempts {
 			if err := sleepBackoff(ctx, attempt, resp.Header.Get("Retry-After")); err != nil {
@@ -78,7 +126,7 @@ func (h *HTTPClient) request(ctx context.Context, method, url string, headers ma
 			}
 			continue
 		}
-		return fmt.Errorf("provider HTTP %d", resp.StatusCode)
+		return failure
 	}
 	return fmt.Errorf("provider request exhausted retries")
 }

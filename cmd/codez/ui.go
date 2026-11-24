@@ -63,7 +63,7 @@ func (c console) prompt() string {
 }
 func (c console) help() {
 	c.section("Commands")
-	for _, row := range [][2]string{{"/models [filter]", "Discover available models"}, {"/model <id>", "Switch model"}, {"/setup", "Configure provider"}, {"/status", "Show current session"}, {"/resume", "Restore recent messages"}, {"/new", "Start a fresh context"}, {"/clear", "Clear the terminal"}, {"/exit", "Close CodEz"}} {
+	for _, row := range [][2]string{{"/models [filter]", "Browse and switch models"}, {"/model", "Open model library"}, {"/setup", "Configure provider"}, {"/status", "Show current session"}, {"/resume", "Restore recent messages"}, {"/new", "Start a fresh context"}, {"/clear", "Clear the terminal"}, {"/exit", "Close CodEz"}} {
 		fmt.Fprintf(c.out, "  %s %s\n", c.style(accent, fmt.Sprintf("%-19s", row[0])), row[1])
 	}
 }

@@ -44,7 +44,7 @@ with tempfile.TemporaryDirectory() as temp:
     server=http.server.ThreadingHTTPServer(('127.0.0.1',0),Provider)
     thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
     try:
-        setup=subprocess.run([str(binary)],input=f'3\nhttp://127.0.0.1:{server.server_port}/v1\n\n1\n/exit\n',text=True,cwd=root,env=env,capture_output=True,timeout=15)
+        setup=subprocess.run([str(binary)],input=f'3\nhttp://127.0.0.1:{server.server_port}/v1\n1\n/exit\n',text=True,cwd=root,env=env,capture_output=True,timeout=15)
         assert setup.returncode==0,setup.stdout+setup.stderr
         assert 'test-model' in setup.stdout and '\x1b' not in setup.stdout, setup.stdout
         master,slave=pty.openpty()

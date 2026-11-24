@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory() as temp:
             proc=subprocess.run([str(binary)],input=text,text=True,cwd=work,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=25)
             assert proc.returncode==0,proc.stdout
             return proc.stdout
-        out=run(f'3\nhttp://127.0.0.1:{server.server_port}/v1\ntest-model\n/models\nfix the file\ny\n/exit\n')
+        out=run(f'3\nhttp://127.0.0.1:{server.server_port}/v1\n1\n/models\n1\nfix the file\ny\n/exit\n')
         assert 'verified replacement' in out,out
         assert 'test-model' in out,out
         assert (work/'example.txt').read_text()=='user change\nnew\n'

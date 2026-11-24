@@ -19,7 +19,7 @@ Architecture: $ARCH
 Maintainer: AuxiaCorp
 Depends: ca-certificates, coreutils
 Recommends: git
-Homepage: https://github.com/AuxiaCorp/CodEz
+Homepage: https://github.com/rollzian/CodEz
 Description: CodEz terminal coding agent
 CONTROL
 OUT="$ROOT/codez#$VBUILD-$VRELEASE.deb"
