@@ -78,6 +78,31 @@ class CloudTests(unittest.TestCase):
         self.assertEqual(self.call('POST','/v1/logout',{},a)[0],200)
         self.assertEqual(self.call('GET','/v1/me',token=a)[0],401)
 
+    def test_role_enforcement_and_revocation(self):
+        a,alice=self.login('alice','Alice');b,bob=self.login('bob','Bob');c,carol=self.login('carol','Carol')
+        self.assertEqual(self.call('POST','/v1/teams',{'name':'Team'},a)[0],200)
+        tid=self.call('GET','/v1/teams',token=a)[2]['items'][0]['id']
+        for token,profile in ((b,bob),(c,carol)):
+            self.assertEqual(self.call('POST',f'/v1/teams/{tid}/invite',{'user_id':profile['id']},a)[0],200)
+            self.assertEqual(self.call('POST',f'/v1/teams/{tid}/accept',{},token)[0],200)
+        self.assertEqual(self.call('POST','/v1/workspaces',{'name':'Shared','team_id':tid},b)[0],200)
+        wid=self.call('GET','/v1/workspaces',token=b)[2]['items'][0]['id']
+        self.assertEqual(self.call('POST',f'/v1/teams/{tid}/role',{'user_id':bob['id'],'role':'viewer'},a)[0],200)
+        self.assertEqual(self.call('GET','/v1/workspaces',token=b)[2]['items'][0]['role'],'viewer')
+        self.assertEqual(self.call('POST',f'/v1/workspaces/{wid}/delete',{},b)[0],404)
+        self.assertEqual(self.call('POST','/v1/workspaces',{'name':'Forbidden','team_id':tid},b)[0],404)
+        self.assertEqual(self.call('POST',f'/v1/teams/{tid}/role',{'user_id':carol['id'],'role':'admin'},b)[0],404)
+        self.assertEqual(self.call('POST',f'/v1/teams/{tid}/role',{'user_id':bob['id'],'role':'owner'},a)[0],400)
+        self.assertEqual(self.call('POST',f'/v1/teams/{tid}/role',{'user_id':carol['id'],'role':'admin'},a)[0],200)
+        self.assertEqual(self.call('POST',f'/v1/teams/{tid}/remove_member',{'user_id':bob['id']},c)[0],200)
+        self.assertEqual(self.call('GET','/v1/workspaces',token=b)[2]['items'],[])
+        self.assertEqual(self.call('POST',f'/v1/workspaces/{wid}/delete',{},b)[0],404)
+        self.assertEqual(self.call('POST',f'/v1/workspaces/{wid}/delete',{},c)[0],200)
+        self.assertEqual(self.call('POST',f'/v1/teams/{tid}/role',{'user_id':carol['id'],'role':'guest'},a)[0],200)
+        self.assertEqual(self.call('GET',f'/v1/teams/{tid}/members',token=c)[0],404)
+        self.assertEqual(self.call('POST',f'/v1/teams/{tid}/leave',{},c)[0],200)
+        self.assertEqual(self.call('GET','/v1/teams',token=c)[2]['items'],[])
+
     def test_pending_rate_limit_and_expiry(self):
         d=self.call('POST','/v1/device/start')[2];secret=d['device_code']
         self.assertEqual(self.call('POST','/v1/device/poll',{'device_code':secret})[2]['error'],'slow_down')

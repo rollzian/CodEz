@@ -89,6 +89,9 @@ func (c console) selectMenu(title, subtitle string, items []string, actions bool
 				return "prev", nil
 			}
 		case "right", "n":
+			if !actions && title == "Chats" && k == "right" {
+				return strconv.Itoa(len(items)), nil
+			}
 			if actions {
 				return "next", nil
 			}

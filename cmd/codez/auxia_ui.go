@@ -22,7 +22,11 @@ func (c console) auxiaHub(section string) error {
 		return e
 	}
 	if token == "" {
-		choice, e := c.selectMenu("Auxia / Connect", "Cloud collaboration · separate from your AI provider", []string{"Sign in with Auxia account", "Back"}, false)
+		subtitle := "Cloud collaboration · separate from your AI provider"
+		if section != "" {
+			subtitle = map[string]string{"workspaces": "Workspaces", "teams": "Teams", "friends": "Friends", "projects": "Public Projects"}[section] + " · " + subtitle
+		}
+		choice, e := c.selectMenu("Auxia / Connect", subtitle, []string{"Sign in with Auxia account", "Back"}, false)
 		if e != nil || choice != "1" {
 			return e
 		}
@@ -54,7 +58,7 @@ func (c console) auxiaHub(section string) error {
 			if e := c.auxiaCollection(ctx, client, section, profile); e != nil {
 				return e
 			}
-			section = ""
+			return nil
 		}
 		choice, e := c.selectMenu("Auxia / Home", profile.Name+"  ·  ID "+profile.ID, []string{"Workspaces     /  Organize your projects", "Teams          /  Collaborate with members", "Friends        /  Connect with developers", "Public Projects /  Discover and publish", "Sign out", "Back to agent"}, false)
 		if e != nil {
@@ -86,7 +90,14 @@ func (c console) auxiaCollection(ctx context.Context, client *auxia.Client, kind
 		}
 		labels := []string{map[string]string{"workspaces": "+ Create workspace", "teams": "+ Create team", "friends": "+ Send friend request", "projects": "+ Publish project"}[kind]}
 		for _, x := range items {
-			labels = append(labels, clean(x.Name+"  ·  "+x.Detail+"  "+x.State))
+			role := x.State
+			if x.Role != "" {
+				role = x.Role
+				if x.State == "invited" {
+					role += " (invited)"
+				}
+			}
+			labels = append(labels, clean(x.Name+"  ·  "+x.Detail+"  ·  "+role))
 		}
 		labels = append(labels, "Back")
 		choice, e := c.selectMenu("Auxia / "+strings.ToUpper(kind[:1])+kind[1:], fmt.Sprintf("%d items · %s", len(items), profile.Name), labels, false)
@@ -115,7 +126,7 @@ func (c console) auxiaCollection(ctx context.Context, client *auxia.Client, kind
 				names := []string{"Personal · private"}
 				ids := []string{""}
 				for _, team := range teams {
-					if team.State == "owner" || team.State == "member" {
+					if team.State == "owner" || team.State == "member" && (team.Role == "" || team.Role == "admin" || team.Role == "maintainer" || team.Role == "developer") {
 						names = append(names, team.Name+" · team workspace")
 						ids = append(ids, team.ID)
 					}
@@ -156,13 +167,21 @@ func (c console) auxiaCollection(ctx context.Context, client *auxia.Client, kind
 			options = append(options, "Accept invitation")
 			actions = append(actions, "accept")
 		}
-		if kind == "teams" && (x.State == "owner" || x.State == "member") {
+		if kind == "teams" && (x.State == "owner" || x.State == "member" && x.Role != "guest") {
 			options = append(options, "View members")
 			actions = append(actions, "members")
 		}
+		if kind == "teams" && (x.State == "owner" || x.State == "member" && x.Role == "admin") {
+			options = append(options, "Invite member", "Remove member")
+			actions = append(actions, "invite", "remove_member")
+		}
 		if kind == "teams" && x.State == "owner" {
-			options = append(options, "Invite member")
-			actions = append(actions, "invite")
+			options = append(options, "Change member role")
+			actions = append(actions, "role")
+		}
+		if kind == "teams" && (x.State == "member" || x.State == "invited") {
+			options = append(options, "Leave / decline team")
+			actions = append(actions, "leave")
 		}
 		if x.State == "owner" || kind == "friends" {
 			options = append(options, "Remove")
@@ -190,7 +209,11 @@ func (c console) auxiaCollection(ctx context.Context, client *auxia.Client, kind
 			}
 			c.section("Team members")
 			for _, m := range members {
-				c.note(m.Name + " · " + m.State + " · " + m.ID)
+				role := m.Role
+				if role == "" {
+					role = m.State
+				}
+				c.note(m.Name + " · " + role + " · " + m.ID)
 			}
 			_, err = c.ask("  Enter to return: ")
 			if err != nil {
@@ -203,13 +226,25 @@ func (c console) auxiaCollection(ctx context.Context, client *auxia.Client, kind
 			continue
 		}
 		fields := map[string]string{}
-		if act == "invite" {
+		if act == "invite" || act == "role" || act == "remove_member" {
 			fields["user_id"], e = c.ask("  Auxia user ID: ")
 			if e != nil {
 				return e
 			}
 		}
-		if act == "delete" {
+		if act == "role" {
+			roles := []string{"admin", "maintainer", "developer", "reviewer", "viewer", "guest"}
+			choice, err := c.selectMenu("Member role", "Choose the new team role", roles, false)
+			if err != nil {
+				continue
+			}
+			n, err := strconv.Atoi(choice)
+			if err != nil || n < 1 || n > len(roles) {
+				continue
+			}
+			fields["role"] = roles[n-1]
+		}
+		if act == "delete" || act == "leave" || act == "remove_member" {
 			v, e := c.ask("  Remove this item? [y/N]: ")
 			if e != nil {
 				return e

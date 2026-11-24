@@ -108,6 +108,7 @@ type Item struct {
 	Name   string `json:"name"`
 	Detail string `json:"detail"`
 	State  string `json:"state"`
+	Role   string `json:"role,omitempty"`
 	URL    string `json:"url"`
 }
 
@@ -200,7 +201,7 @@ func (c *Client) Create(ctx context.Context, kind string, fields map[string]stri
 	return c.request(ctx, "POST", "/"+kind, fields, nil)
 }
 func (c *Client) Action(ctx context.Context, kind, id, action string, fields map[string]string) error {
-	if !validKind(kind) || !itemID.MatchString(id) || !(action == "accept" || action == "invite" || action == "delete") {
+	if !validKind(kind) || !itemID.MatchString(id) || !(action == "accept" || action == "invite" || action == "delete" || (kind == "teams" && (action == "role" || action == "remove_member" || action == "leave"))) {
 		return errors.New("invalid action")
 	}
 	return c.request(ctx, "POST", "/"+kind+"/"+url.PathEscape(id)+"/"+action, fields, nil)

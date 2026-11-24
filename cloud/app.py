@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS oauth_states(digest TEXT PRIMARY KEY, device TEXT NOT
 CREATE TABLE IF NOT EXISTS tokens(digest TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS workspaces(id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, team TEXT REFERENCES teams(id) ON DELETE CASCADE);
 CREATE TABLE IF NOT EXISTS teams(id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS members(team TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id), accepted INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(team,user_id));
+CREATE TABLE IF NOT EXISTS members(team TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id), accepted INTEGER NOT NULL DEFAULT 0, role TEXT NOT NULL DEFAULT 'developer' CHECK(role IN ('admin','maintainer','developer','reviewer','viewer','guest')), PRIMARY KEY(team,user_id));
 CREATE TABLE IF NOT EXISTS friends(id TEXT PRIMARY KEY, sender TEXT NOT NULL REFERENCES users(id), recipient TEXT NOT NULL REFERENCES users(id), accepted INTEGER NOT NULL DEFAULT 0, pair TEXT UNIQUE NOT NULL);
 CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, url TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS workspace_owner ON workspaces(owner);
@@ -30,6 +30,11 @@ CREATE INDEX IF NOT EXISTS friend_sender ON friends(sender);
 CREATE INDEX IF NOT EXISTS friend_recipient ON friends(recipient);
 CREATE INDEX IF NOT EXISTS token_user ON tokens(user_id);
 '''
+
+TEAM_ROLES = ('admin','maintainer','developer','reviewer','viewer','guest')
+WORKSPACE_WRITERS = ('owner','admin','maintainer','developer')
+TEAM_MANAGERS = ('owner','admin')
+
 
 class Failure(Exception):
     def __init__(self, status, code):
@@ -70,6 +75,9 @@ class App:
         self.cookie_path = self.prefix.rstrip("/") + "/"
         with closing(self.connect()) as conn:
             conn.executescript(SCHEMA)
+            with self.transaction(conn):
+                if 'role' not in {row['name'] for row in conn.execute('PRAGMA table_info(members)')}:
+                    conn.execute("ALTER TABLE members ADD COLUMN role TEXT NOT NULL DEFAULT 'developer' CHECK(role IN ('admin','maintainer','developer','reviewer','viewer','guest'))")
 
     def connect(self):
         conn = sqlite3.connect(self.db, timeout=5, isolation_level=None)
@@ -252,20 +260,32 @@ class App:
 
     def list_items(self,conn,kind,user):
         queries={
-          'workspaces':("SELECT w.id,w.name,COALESCE(t.name,'Private workspace') detail,CASE WHEN w.owner=? OR t.owner=? THEN 'owner' ELSE 'member' END state FROM workspaces w LEFT JOIN teams t ON w.team=t.id WHERE w.owner=? OR t.owner=? OR EXISTS(SELECT 1 FROM members m WHERE m.team=w.team AND m.user_id=? AND m.accepted=1) ORDER BY w.name LIMIT 200",(user,)*5),
-          'teams':("SELECT t.id,t.name,CASE WHEN t.owner=? THEN 'Owner' ELSE 'Team' END detail,CASE WHEN t.owner=? THEN 'owner' WHEN m.accepted=1 THEN 'member' ELSE 'invited' END state FROM teams t LEFT JOIN members m ON m.team=t.id AND m.user_id=? WHERE t.owner=? OR m.user_id=? ORDER BY t.name LIMIT 200",(user,)*5),
+          'workspaces':("""SELECT w.id,w.name,COALESCE(t.name,'Private workspace') detail,
+              CASE WHEN w.team IS NULL OR t.owner=? OR m.role IN ('admin','maintainer') OR (w.owner=? AND m.role='developer') THEN 'owner' ELSE 'member' END state,
+              CASE WHEN w.team IS NULL OR t.owner=? THEN 'owner' ELSE m.role END role
+              FROM workspaces w LEFT JOIN teams t ON w.team=t.id LEFT JOIN members m ON m.team=w.team AND m.user_id=? AND m.accepted=1
+              WHERE (w.team IS NULL AND w.owner=?) OR t.owner=? OR m.user_id IS NOT NULL ORDER BY w.name LIMIT 200""",(user,)*6),
+          'teams':("""SELECT t.id,t.name,CASE WHEN t.owner=? THEN 'Owner' ELSE 'Team' END detail,
+              CASE WHEN t.owner=? THEN 'owner' WHEN m.accepted=1 THEN 'member' ELSE 'invited' END state,
+              CASE WHEN t.owner=? THEN 'owner' ELSE m.role END role
+              FROM teams t LEFT JOIN members m ON m.team=t.id AND m.user_id=? WHERE t.owner=? OR m.user_id=? ORDER BY t.name LIMIT 200""",(user,)*6),
           'friends':("SELECT f.id,u.name,u.id detail,CASE WHEN f.accepted=1 THEN 'friend' WHEN f.sender=? THEN 'outgoing' ELSE 'incoming' END state FROM friends f JOIN users u ON u.id=CASE WHEN f.sender=? THEN f.recipient ELSE f.sender END WHERE f.sender=? OR f.recipient=? ORDER BY u.name LIMIT 200",(user,)*4),
           'projects':("SELECT p.id,p.name,u.name detail,CASE WHEN p.owner=? THEN 'owner' ELSE 'public' END state,p.url FROM projects p JOIN users u ON u.id=p.owner ORDER BY p.name LIMIT 200",(user,)),
         }
         sql,args=queries[kind];return [dict(x) for x in conn.execute(sql,args)]
 
+    def team_role(self,conn,team,user):
+        row=conn.execute("""SELECT CASE WHEN t.owner=? THEN 'owner' ELSE m.role END role
+          FROM teams t LEFT JOIN members m ON m.team=t.id AND m.user_id=? AND m.accepted=1
+          WHERE t.id=? AND (t.owner=? OR m.user_id IS NOT NULL)""",(user,user,team,user)).fetchone()
+        return row['role'] if row else None
+
     def team_members(self,conn,team,user):
+        role=self.team_role(conn,team,user)
+        if role is None or role=='guest': raise Failure('404 Not Found','not_found')
         owner=conn.execute('SELECT owner FROM teams WHERE id=?',(team,)).fetchone()
-        if not owner: raise Failure('404 Not Found','not_found')
-        is_owner=owner['owner']==user
-        if not is_owner and not conn.execute('SELECT 1 FROM members WHERE team=? AND user_id=? AND accepted=1',(team,user)).fetchone(): raise Failure('404 Not Found','not_found')
-        items=[dict(x) for x in conn.execute("SELECT id,name,'Owner' detail,'owner' state FROM users WHERE id=?",(owner['owner'],))]
-        items.extend(dict(x) for x in conn.execute("SELECT u.id,u.name,u.id detail,CASE WHEN m.accepted=1 THEN 'member' ELSE 'invited' END state FROM members m JOIN users u ON u.id=m.user_id WHERE m.team=? AND (m.accepted=1 OR ?) ORDER BY u.name LIMIT 200",(team,is_owner)))
+        items=[dict(x) for x in conn.execute("SELECT id,name,'Owner' detail,'owner' state,'owner' role FROM users WHERE id=?",(owner['owner'],))]
+        items.extend(dict(x) for x in conn.execute("SELECT u.id,u.name,u.id detail,CASE WHEN m.accepted=1 THEN 'member' ELSE 'invited' END state,m.role FROM members m JOIN users u ON u.id=m.user_id WHERE m.team=? AND (m.accepted=1 OR ?) ORDER BY u.name LIMIT 200",(team,role in TEAM_MANAGERS)))
         return items
 
     def name(self,data):
@@ -293,7 +313,7 @@ class App:
             conn.execute('INSERT INTO projects VALUES(?,?,?,?)',(random_id(),user,name,url))
         elif kind=='workspaces':
             team=data.get('team_id') or None
-            if team is not None and (not isinstance(team,str) or not conn.execute('SELECT 1 FROM teams t WHERE id=? AND (owner=? OR EXISTS(SELECT 1 FROM members m WHERE m.team=t.id AND m.user_id=? AND m.accepted=1))',(team,user,user)).fetchone()): raise Failure('404 Not Found','not_found')
+            if team is not None and (not isinstance(team,str) or self.team_role(conn,team,user) not in WORKSPACE_WRITERS): raise Failure('404 Not Found','not_found')
             conn.execute('INSERT INTO workspaces VALUES(?,?,?,?)',(random_id(),user,name,team))
         else: conn.execute('INSERT INTO teams VALUES(?,?,?)',(random_id(),user,name))
 
@@ -304,13 +324,30 @@ class App:
             elif action=='delete': cur=conn.execute('DELETE FROM friends WHERE id=? AND (sender=? OR recipient=?)',(item,user,user))
             else: raise Failure('400 Bad Request','invalid_action')
         elif kind=='teams' and action=='invite':
-            if not conn.execute('SELECT 1 FROM teams WHERE id=? AND owner=?',(item,user)).fetchone(): raise Failure('404 Not Found','not_found')
+            if self.team_role(conn,item,user) not in TEAM_MANAGERS: raise Failure('404 Not Found','not_found')
             other=self.target(conn,user,data)
+            if conn.execute('SELECT 1 FROM teams WHERE id=? AND owner=?',(item,other)).fetchone(): raise Failure('409 Conflict','already_exists')
             if conn.execute('SELECT COUNT(*) FROM members WHERE team=?',(item,)).fetchone()[0]>=200: raise Failure('409 Conflict','limit_reached')
             if conn.execute('SELECT 1 FROM members WHERE team=? AND user_id=?',(item,other)).fetchone(): raise Failure('409 Conflict','already_exists')
-            conn.execute('INSERT INTO members VALUES(?,?,0)',(item,other));return
+            conn.execute("INSERT INTO members(team,user_id,accepted,role) VALUES(?,?,0,'developer')",(item,other));return
         elif kind=='teams' and action=='accept': cur=conn.execute('UPDATE members SET accepted=1 WHERE team=? AND user_id=? AND accepted=0',(item,user))
-        elif kind=='workspaces' and action=='delete': cur=conn.execute('DELETE FROM workspaces WHERE id=? AND (owner=? OR team IN (SELECT id FROM teams WHERE owner=?))',(item,user,user))
+        elif kind=='teams' and action=='leave': cur=conn.execute('DELETE FROM members WHERE team=? AND user_id=?',(item,user))
+        elif kind=='teams' and action=='role':
+            if self.team_role(conn,item,user)!='owner': raise Failure('404 Not Found','not_found')
+            role=data.get('role');other=self.target(conn,user,data)
+            if role not in TEAM_ROLES: raise Failure('400 Bad Request','invalid_role')
+            cur=conn.execute('UPDATE members SET role=? WHERE team=? AND user_id=?',(role,item,other))
+        elif kind=='teams' and action=='remove_member':
+            role=self.team_role(conn,item,user);other=self.target(conn,user,data)
+            if role not in TEAM_MANAGERS: raise Failure('404 Not Found','not_found')
+            cur=conn.execute("DELETE FROM members WHERE team=? AND user_id=? AND (?='owner' OR role!='admin')",(item,other,role))
+        elif kind=='workspaces' and action=='delete':
+            row=conn.execute('SELECT owner,team FROM workspaces WHERE id=?',(item,)).fetchone()
+            if not row: raise Failure('404 Not Found','not_found')
+            role=self.team_role(conn,row['team'],user) if row['team'] else None
+            if not ((row['team'] is None and row['owner']==user) or role in ('owner','admin','maintainer') or (role=='developer' and row['owner']==user)):
+                raise Failure('404 Not Found','not_found')
+            cur=conn.execute('DELETE FROM workspaces WHERE id=?',(item,))
         elif kind=='teams' and action=='delete':
             if not conn.execute('SELECT 1 FROM teams WHERE id=? AND owner=?',(item,user)).fetchone(): raise Failure('404 Not Found','not_found')
             if conn.execute('SELECT 1 FROM workspaces WHERE team=?',(item,)).fetchone(): raise Failure('409 Conflict','remove_team_workspaces_first')
@@ -322,7 +359,7 @@ class App:
 
 def create_app():
     os.umask(0o077)
-    return App(os.environ['CODEZ_CLOUD_DB'],os.getenv('CODEZ_CLOUD_BASE','https://auxia.space/codez-cloud'),os.environ['AUXIA_OAUTH_AUTHORIZE'],os.environ['AUXIA_OAUTH_TOKEN'],os.environ['AUXIA_OAUTH_USERINFO'],os.environ['AUXIA_OAUTH_CLIENT_ID'],os.getenv('AUXIA_OAUTH_CLIENT_SECRET',''),os.getenv('AUXIA_OAUTH_SCOPE','openid profile'))
+    return App(os.environ['CODEZ_CLOUD_DB'],os.getenv('CODEZ_CLOUD_BASE','https://auxia.space/codez-cloud'),os.getenv('AUXIA_OAUTH_AUTHORIZE','https://auxia.space/api/login'),os.environ['AUXIA_OAUTH_TOKEN'],os.environ['AUXIA_OAUTH_USERINFO'],os.environ['AUXIA_OAUTH_CLIENT_ID'],os.getenv('AUXIA_OAUTH_CLIENT_SECRET',''),os.getenv('AUXIA_OAUTH_SCOPE','openid profile'))
 
 
 if __name__=='__main__':

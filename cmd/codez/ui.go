@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -54,6 +55,12 @@ func (c console) banner(root string) {
 	fmt.Fprintln(c.out, "  "+c.style(accent, "╭━━╮")+"  "+c.style("1", "CodEz")+"  "+c.style(muted, "#"+build+"-"+release))
 	fmt.Fprintln(c.out, "  "+c.style(accent, "╰━╸╱")+"  "+c.style(muted, "CODE  /  BUILD  /  COLLABORATE"))
 	fmt.Fprintln(c.out, "  "+c.style(muted, "Local workspace")+"  "+clean(root))
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "-C", root, "branch", "--show-current")
+	if b, e := cmd.Output(); e == nil && strings.TrimSpace(string(b)) != "" {
+		fmt.Fprintln(c.out, "  "+c.style(muted, "Git branch")+"        "+clean(strings.TrimSpace(string(b))))
+	}
 	fmt.Fprintln(c.out)
 }
 
@@ -72,7 +79,7 @@ func (c console) prompt() string {
 }
 func (c console) help() {
 	c.section("Commands")
-	for _, row := range [][2]string{{"/menu", "Open command palette"}, {"/models [filter]", "Browse and switch models"}, {"/model", "Open model library"}, {"/setup", "Configure provider"}, {"/auxia", "Workspaces, teams, friends and public projects"}, {"/status", "Show current session"}, {"/resume", "Restore recent messages"}, {"/new", "Start a fresh context"}, {"/clear", "Clear the terminal"}, {"/exit", "Close CodEz"}} {
+	for _, row := range [][2]string{{"/menu", "Open command palette"}, {"/models [filter]", "Browse and switch models"}, {"/model", "Open model library"}, {"/setup", "Configure provider"}, {"/auxia", "Workspaces, teams, friends and public projects"}, {"/status", "Show current session"}, {"/resume", "Restore recent messages"}, {"/chats", "Browse local conversations"}, {"/history", "Reuse a previous prompt"}, {"/new", "Create independent chat"}, {"/mode", "Select agent mode"}, {"/skills", "Enable local instructions"}, {"/save", "Flush chat to disk"}, {"/doctor", "Local diagnostics"}, {"/clear", "Clear the terminal"}, {"/exit", "Close CodEz"}} {
 		fmt.Fprintf(c.out, "  %s %s\n", c.style(accent, fmt.Sprintf("%-19s", row[0])), row[1])
 	}
 }

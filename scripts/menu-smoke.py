@@ -71,7 +71,8 @@ with tempfile.TemporaryDirectory() as temp:
         until(b'Model library')
         os.write(master, b'\x1b')
         until(b'selection cancelled')
-        assert termios.tcgetattr(slave) == original
+        # The new composer enters raw mode while awaiting keyboard shortcuts.
+        # Exact terminal restoration is checked after process exit below.
         os.write(master, b'/exit\n')
         assert proc.wait(timeout=5) == 0
         assert termios.tcgetattr(slave) == original

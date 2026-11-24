@@ -21,9 +21,9 @@ import (
 	"github.com/AuxiaCorp/CodEz/internal/tools"
 )
 
-var version = "0.7.6"
+var version = "0.7.7"
 
-var build = "1g"
+var build = "1h"
 var release = "1"
 
 type console struct {
@@ -250,8 +250,8 @@ func (c console) approve(call provider.ToolCall, key string) bool {
 	s, e := c.ask("Approve [y/N]: ")
 	return e == nil && strings.EqualFold(s, "y")
 }
-func (c console) turn(ctx context.Context, p provider.Provider, r *tools.Registry, ms []provider.Message, key string) (string, error) {
-	defs := r.Definitions()
+func (c console) turn(ctx context.Context, p provider.Provider, r *tools.Registry, ms []provider.Message, key string, mode agentMode) (string, error) {
+	defs := mode.definitions(r.Definitions())
 	res, e := c.modelRequest(ctx, key, func(ctx context.Context) (provider.Result, error) { return p.Complete(ctx, ms, defs) })
 	if e != nil {
 		return "", e
@@ -276,6 +276,10 @@ func (c console) turn(ctx context.Context, p provider.Provider, r *tools.Registr
 			}
 			if _, exists := outs[call.ID]; exists {
 				return "", errors.New("duplicate tool ID")
+			}
+			if !mode.allows(call.Name) {
+				outs[call.ID] = "Denied by agent mode"
+				continue
 			}
 			if !c.approve(call, key) {
 				c.note("Skipped " + toolLabel(call, key))
@@ -327,6 +331,7 @@ func run() error {
 	if e != nil {
 		return e
 	}
+	c.clear()
 	c.banner(r.Root)
 	cfg, e := config.Load()
 	var key string
@@ -354,11 +359,32 @@ func run() error {
 		return e
 	}
 	p := createProvider(cfg, key)
-	ms := []provider.Message{{Role: "system", Content: instructions(r)}}
-	c.status(cfg, 0)
+	baseInstructions := instructions(r)
+	enabledSkills := map[string]string{}
+	mode := modeCode
+	ms := []provider.Message{{Role: "system", Content: systemPrompt(baseInstructions, cfg.Model, mode)}}
+	draft := &composer{}
+	drafts := map[string]*composer{}
+	if active, err := s.Active(); err == nil {
+		s = active
+	} else {
+		c.note("Saved chat unavailable: " + err.Error())
+	}
+	if restored, err := restoreChat(s, ms[0]); err == nil {
+		ms = restored
+	} else {
+		c.failure("Chat history: " + err.Error())
+	}
+	c.status(cfg, len(ms)-1)
+	if c.rich {
+		c.replay(ms)
+	}
 	c.note("/menu · command palette   /auxia · collaboration   /help")
 	for {
-		line, e := c.ask(c.prompt())
+		line, e := c.readPrompt(draft, mode)
+		if errors.Is(e, context.Canceled) {
+			continue
+		}
 		if errors.Is(e, io.EOF) {
 			return nil
 		}
@@ -369,8 +395,8 @@ func run() error {
 			continue
 		}
 		if line == "/menu" {
-			actions := []string{"/model", "/setup", "/auxia", "/status", "/resume", "/new", "/exit"}
-			choice, err := c.selectMenu("Command palette", "Navigate your CodEz workspace", []string{"Model library", "Provider settings", "Auxia Cloud", "Session status", "Restore session", "Start new conversation", "Exit CodEz"}, false)
+			actions := []string{"/chats", "/model", "/mode", "/skills", "/setup", "/auxia", "/status", "/resume", "/new", "/doctor", "/exit"}
+			choice, err := c.selectMenu("Command palette", "Navigate your CodEz workspace", []string{"Chats", "Model library", "Agent mode", "Skills", "Provider settings", "Auxia Cloud", "Session status", "Restore session", "Start new conversation", "Diagnostics", "Exit CodEz"}, false)
 			if err != nil {
 				c.note(err.Error())
 				continue
@@ -396,7 +422,111 @@ func run() error {
 		case "/help":
 			c.help()
 			continue
+		case "/skills":
+			if err := c.skillPicker(r.Root, enabledSkills, key); err != nil {
+				c.note(err.Error())
+			}
+			continue
+		case "/mode-next":
+			mode = mode.next()
+			c.success("Agent mode: " + string(mode))
+			continue
+		case "/mode":
+			choice, err := c.selectMenu("Agent mode", "Read-only modes cannot run shell or edit files", []string{"Code · make changes", "Ask · answer questions", "Plan · design a solution", "Review · inspect changes"}, false)
+			if err == nil {
+				if n, err := strconv.Atoi(choice); err == nil && n >= 1 && n <= len(agentModes) {
+					mode = agentModes[n-1]
+					c.success("Agent mode: " + string(mode))
+				}
+			}
+			continue
+		case "/history":
+			events, err := s.Recent(80)
+			if err != nil {
+				c.failure(err.Error())
+				continue
+			}
+			values := []string{}
+			labels := []string{}
+			for i := len(events) - 1; i >= 0; i-- {
+				if events[i].Role == "user" {
+					values = append(values, events[i].Content)
+					labels = append(labels, clipLine(events[i].Content, 120))
+				}
+			}
+			if len(values) == 0 {
+				c.note("No previous prompts")
+				continue
+			}
+			v, err := c.selectMenu("Prompt history", "Choose a previous prompt to edit", labels, false)
+			if err == nil {
+				if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= len(values) {
+					draft.set(values[n-1])
+				}
+			}
+			continue
+		case "/save":
+			if err := s.Sync(); err != nil {
+				c.failure(err.Error())
+			} else {
+				c.success("Chat saved")
+			}
+			continue
+		case "/doctor":
+			c.section("Diagnostics")
+			c.note("CodEz " + version + " (#" + build + "-" + release + ")")
+			c.note("Provider: " + cfg.Provider + " · " + cfg.BaseURL)
+			c.note("Model: " + cfg.Model + " · " + cfg.Auth)
+			c.note("Interactive terminal: " + strconv.FormatBool(c.rich))
+			if _, err := exec.LookPath("git"); err != nil {
+				c.failure("Git not installed")
+			} else {
+				c.success("Git available")
+			}
+			if err := cfg.Validate(); err != nil {
+				c.failure(err.Error())
+			} else {
+				c.success("Configuration valid")
+			}
+			continue
+		case "/chats", "/search-chats":
+			query := ""
+			if line == "/search-chats" {
+				query, e = c.ask("  Search chat titles: ")
+				if e != nil {
+					continue
+				}
+			}
+			next, err := c.chatPicker(s, query)
+			if err != nil {
+				c.note(err.Error())
+				continue
+			}
+			if next.ID() == s.ID() {
+				continue
+			}
+			restored, err := restoreChat(next, ms[0])
+			if err != nil {
+				c.failure(err.Error())
+				continue
+			}
+			drafts[s.ID()] = draft
+			s = next
+			if err := s.SelectActive(); err != nil {
+				c.failure(err.Error())
+			}
+			ms = restored
+			draft = drafts[s.ID()]
+			if draft == nil {
+				draft = &composer{}
+			}
+			c.clear()
+			c.banner(r.Root)
+			c.status(cfg, len(ms)-1)
+			c.replay(ms)
+			continue
 		case "/status":
+			c.note("Mode: " + string(mode))
 			c.status(cfg, len(ms)-1)
 			c.note(r.Root)
 			continue
@@ -416,10 +546,19 @@ func run() error {
 			ms = ms[:1]
 			continue
 		case "/new":
-			ms = ms[:1]
-			if e = s.Append("reset", ""); e != nil {
-				fmt.Fprintln(c.out, e)
+			next, err := s.Create()
+			if err != nil {
+				c.failure(err.Error())
+				continue
 			}
+			drafts[s.ID()] = draft
+			s = next
+			if err := s.SelectActive(); err != nil {
+				c.failure(err.Error())
+			}
+			draft = &composer{}
+			ms = ms[:1]
+			c.success("New chat")
 			continue
 		case "/resume":
 			events, e := s.Recent(40)
@@ -485,6 +624,7 @@ func run() error {
 			c.note("Unknown command. /help")
 			continue
 		}
+		ms[0].Content = systemPrompt(baseInstructions+skillContext(enabledSkills), cfg.Model, mode)
 		if len(ms) > 81 {
 			c.failure("Context limit reached; use /new or /resume.")
 			continue
@@ -503,7 +643,7 @@ func run() error {
 			fmt.Fprintln(c.out, "Session:", e)
 		}
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-		answer, e := c.turn(ctx, p, r, ms, key)
+		answer, e := c.turn(ctx, p, r, ms, key, mode)
 		stop()
 		if e != nil {
 			if errors.Is(e, context.Canceled) {
