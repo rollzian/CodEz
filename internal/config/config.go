@@ -1,0 +1,117 @@
+package config
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+type Config struct {
+	Provider string `json:"provider"`
+	BaseURL  string `json:"base_url"`
+	Model    string `json:"model"`
+}
+
+func Dir() (string, error) {
+	d, e := os.UserConfigDir()
+	if e != nil {
+		return "", e
+	}
+	d = filepath.Join(d, "codez")
+	if e = os.MkdirAll(d, 0700); e != nil {
+		return "", e
+	}
+	return d, nil
+}
+func (c Config) Validate() error {
+	switch c.Provider {
+	case "openai", "anthropic", "compatible":
+	default:
+		return errors.New("invalid provider")
+	}
+	if strings.TrimSpace(c.Model) == "" {
+		return errors.New("model is required")
+	}
+	u, e := url.Parse(c.BaseURL)
+	if e != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return errors.New("invalid base URL")
+	}
+	if u.Scheme != "https" && !(u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1")) {
+		return errors.New("HTTPS required except on loopback")
+	}
+	return nil
+}
+func Load() (Config, error) {
+	var c Config
+	d, e := Dir()
+	if e != nil {
+		return c, e
+	}
+	b, e := os.ReadFile(filepath.Join(d, "config.json"))
+	if e != nil {
+		return c, e
+	}
+	if e = json.Unmarshal(b, &c); e != nil {
+		return c, e
+	}
+	return c, c.Validate()
+}
+func Secret() (string, error) {
+	d, e := Dir()
+	if e != nil {
+		return "", e
+	}
+	p := filepath.Join(d, "secret")
+	s, e := os.Lstat(p)
+	if os.IsNotExist(e) {
+		return "", nil
+	}
+	if e != nil {
+		return "", e
+	}
+	if !s.Mode().IsRegular() || s.Mode().Perm()&0077 != 0 {
+		return "", errors.New("unsafe secret file permissions or type")
+	}
+	b, e := os.ReadFile(p)
+	return string(b), e
+}
+func atomic(d, n string, b []byte) error {
+	f, e := os.CreateTemp(d, ".codez-*")
+	if e != nil {
+		return e
+	}
+	defer os.Remove(f.Name())
+	if _, e = f.Write(b); e != nil {
+		f.Close()
+		return e
+	}
+	if e = f.Sync(); e != nil {
+		f.Close()
+		return e
+	}
+	if e = f.Close(); e != nil {
+		return e
+	}
+	return os.Rename(f.Name(), filepath.Join(d, n))
+}
+func Save(c Config, key string) error {
+	if e := c.Validate(); e != nil {
+		return e
+	}
+	d, e := Dir()
+	if e != nil {
+		return e
+	}
+	b, e := json.MarshalIndent(c, "", "  ")
+	if e != nil {
+		return e
+	}
+	if e = atomic(d, "secret", []byte(key)); e != nil {
+		return fmt.Errorf("save credentials: %w", e)
+	}
+	return atomic(d, "config.json", b)
+}
