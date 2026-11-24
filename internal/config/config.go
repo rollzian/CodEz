@@ -79,19 +79,25 @@ func Secret() (string, error) {
 	if e != nil {
 		return "", e
 	}
-	p := filepath.Join(d, "secret")
-	s, e := os.Lstat(p)
+	b, e := privateRead(d, "secret")
 	if os.IsNotExist(e) {
 		return "", nil
 	}
+	return strings.TrimSpace(string(b)), e
+}
+
+// APIKey prefers the saved provider credential, even when it is intentionally empty.
+// The environment is a fallback only for externally provisioned configurations.
+func APIKey() (string, error) {
+	d, e := Dir()
 	if e != nil {
 		return "", e
 	}
-	if !s.Mode().IsRegular() || s.Mode().Perm()&0077 != 0 {
-		return "", errors.New("unsafe secret file permissions or type")
+	b, e := privateRead(d, "secret")
+	if os.IsNotExist(e) {
+		return strings.TrimSpace(os.Getenv("CODEZ_API_KEY")), nil
 	}
-	b, e := os.ReadFile(p)
-	return string(b), e
+	return strings.TrimSpace(string(b)), e
 }
 func atomic(d, n string, b []byte) error {
 	f, e := os.CreateTemp(d, ".codez-*")

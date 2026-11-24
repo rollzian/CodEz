@@ -1,5 +1,5 @@
 pkgname=codez
-pkgver=0.7.4
+pkgver=0.7.5
 pkgrel=1
 pkgdesc='CodEz terminal coding agent'
 arch=('x86_64')

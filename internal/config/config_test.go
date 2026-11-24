@@ -53,3 +53,25 @@ func TestOAuthEndpointBinding(t *testing.T) {
 		}
 	}
 }
+
+func TestSavedAPIKeyTakesPrecedence(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("CODEZ_API_KEY", "stale-key")
+	c := Config{Provider: "compatible", BaseURL: "http://127.0.0.1:1234/v1", Model: "test"}
+	for _, want := range []string{"new-key", ""} {
+		if err := Save(c, want); err != nil {
+			t.Fatal(err)
+		}
+		got, err := APIKey()
+		if err != nil || got != want {
+			t.Fatal("saved credential was replaced", err)
+		}
+	}
+	d, _ := Dir()
+	if err := os.Remove(filepath.Join(d, "secret")); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := APIKey(); err != nil || got != "stale-key" {
+		t.Fatal("environment fallback failed", err)
+	}
+}

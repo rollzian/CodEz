@@ -129,3 +129,21 @@ func TestModelPickerSearch(t *testing.T) {
 		t.Fatalf("%q %v %s", model, err, out.String())
 	}
 }
+
+func TestInteractiveKeyOverridesStaleEnvironment(t *testing.T) {
+	t.Setenv("CODEZ_API_KEY", "stale-key")
+	var out bytes.Buffer
+	c := console{in: bufio.NewReader(strings.NewReader("  new-provider-key  \n")), out: &out, interactive: true}
+	key, err := c.secret()
+	if err != nil || key != "new-provider-key" {
+		t.Fatal("interactive input was ignored", err)
+	}
+	if strings.Contains(out.String(), key) || strings.Contains(out.String(), "stale-key") {
+		t.Fatal("credential leaked")
+	}
+	c.in = bufio.NewReader(strings.NewReader(":env\n"))
+	key, err = c.secret()
+	if err != nil || key != "stale-key" {
+		t.Fatal("explicit environment selection failed", err)
+	}
+}

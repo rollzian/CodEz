@@ -18,6 +18,7 @@ binary = pathlib.Path(sys.argv[1]).resolve()
 class Provider(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         assert self.path == '/v1/models'
+        assert self.headers['Authorization'] == 'Bearer test-secret'
         body = b'{"data":[{"id":"alpha"},{"id":"beta"}]}'
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
@@ -29,7 +30,7 @@ class Provider(http.server.BaseHTTPRequestHandler):
 
 with tempfile.TemporaryDirectory() as temp:
     root = pathlib.Path(temp)
-    env = {**os.environ, 'XDG_CONFIG_HOME': str(root/'config'), 'XDG_STATE_HOME': str(root/'state'), 'CODEZ_API_KEY': 'test-secret', 'TERM': 'xterm-256color'}
+    env = {**os.environ, 'XDG_CONFIG_HOME': str(root/'config'), 'XDG_STATE_HOME': str(root/'state'), 'CODEZ_API_KEY': 'stale-secret', 'TERM': 'xterm-256color'}
     env.pop('CODEZ_SIMPLE_UI', None)
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Provider)
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -58,6 +59,8 @@ with tempfile.TemporaryDirectory() as temp:
         os.write(master, b'\x1b[B\x1b[B\r')
         until(b'Endpoint')
         os.write(master, f'http://127.0.0.1:{server.server_port}/v1\n'.encode())
+        until(b'API key')
+        os.write(master, b'test-secret\n')
         until(b'Model library')
         os.write(master, b'\x1b[B\r')
         until(b'Provider configured')

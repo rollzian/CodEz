@@ -117,3 +117,40 @@ func TestIncompleteStreamsRejectPartialToolCalls(t *testing.T) {
 		})
 	}
 }
+
+func TestMislabelledEventStream(t *testing.T) {
+	for _, contentType := range []string{"text/plain", "application/json", "application/octet-stream", "text/event-stream; charset=utf-8"} {
+		t.Run(contentType, func(t *testing.T) {
+			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
+					t.Error("missing SSE negotiation")
+				}
+				if r.Header.Get("Authorization") != "Bearer valid-key" {
+					t.Error("wrong credential")
+				}
+				w.Header().Set("Content-Type", contentType)
+				fmt.Fprint(w, "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"hello\"}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}]}}\n\n")
+			}))
+			defer s.Close()
+			p := NewOpenAI(s.URL, "valid-key", "m")
+			var seen strings.Builder
+			ctx := WithTextStream(context.Background(), func(s string) { seen.WriteString(s) })
+			r, err := p.Complete(ctx, []Message{{Role: "user", Content: "hello"}}, nil)
+			if err != nil || r.Text != "hello" || seen.String() != "hello" {
+				t.Fatal(r.Text, seen.String(), err)
+			}
+		})
+	}
+}
+
+func TestUnexpectedPlainTextDoesNotLeakBody(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprint(w, "error: secret-response")
+	}))
+	defer s.Close()
+	_, err := NewChatCompatible(s.URL, "key", "m").Complete(context.Background(), nil, nil)
+	if err == nil || strings.Contains(err.Error(), "secret-response") || !strings.Contains(err.Error(), "endpoint") {
+		t.Fatal("missing safe protocol diagnostic", err)
+	}
+}

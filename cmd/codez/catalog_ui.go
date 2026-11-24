@@ -58,7 +58,7 @@ func authMessage(err error, cfg config.Config, key string) string {
 	case "openrouter":
 		return detail + " - OpenRouter rejected the issued key. Sign in again with /setup."
 	}
-	if os.Getenv("CODEZ_API_KEY") != "" {
+	if env := strings.TrimSpace(os.Getenv("CODEZ_API_KEY")); env != "" && key == env {
 		return detail + " - provider rejected CODEZ_API_KEY. Update or unset it, then use /setup."
 	}
 	return detail + " - API key missing, invalid, expired, or for a different provider. Use /setup."

@@ -79,7 +79,7 @@ func decodeJSON(reader io.Reader, out any) error {
 		return fmt.Errorf("provider response exceeds size limit")
 	}
 	if err = json.Unmarshal(data, out); err != nil {
-		return fmt.Errorf("invalid provider JSON: %w", err)
+		return fmt.Errorf("invalid provider JSON; check endpoint, proxy and response format: %w", err)
 	}
 	return nil
 }
@@ -100,6 +100,7 @@ func (h *HTTPClient) request(ctx context.Context, method, url string, headers ma
 			return err
 		}
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
 		for k, v := range headers {
 			req.Header.Set(k, v)
 		}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -24,9 +25,17 @@ const (
 func newConsole(in *os.File, out *os.File) console {
 	a, ae := in.Stat()
 	b, be := out.Stat()
-	terminal := ae == nil && be == nil && a.Mode()&os.ModeCharDevice != 0 && b.Mode()&os.ModeCharDevice != 0 && os.Getenv("TERM") != "dumb" && os.Getenv("TERM") != ""
+	var terminalInput *os.File
+	if ae == nil && a.Mode()&os.ModeCharDevice != 0 {
+		cmd := exec.Command("stty", "-g")
+		cmd.Stdin = in
+		if cmd.Run() == nil {
+			terminalInput = in
+		}
+	}
+	terminal := terminalInput != nil && be == nil && b.Mode()&os.ModeCharDevice != 0 && os.Getenv("TERM") != "dumb" && os.Getenv("TERM") != ""
 	_, noColor := os.LookupEnv("NO_COLOR")
-	return console{in: bufio.NewReader(in), out: out, rich: terminal, color: terminal && !noColor, motion: terminal && os.Getenv("CODEZ_NO_MOTION") == "" && !noColor}
+	return console{in: bufio.NewReader(in), out: out, terminalInput: terminalInput, rich: terminal, color: terminal && !noColor, motion: terminal && os.Getenv("CODEZ_NO_MOTION") == "" && !noColor, interactive: terminalInput != nil}
 }
 
 func (c console) style(code, value string) string {

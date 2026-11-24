@@ -21,15 +21,16 @@ import (
 	"github.com/AuxiaCorp/CodEz/internal/tools"
 )
 
-var version = "0.7.4"
+var version = "0.7.5"
 
-var build = "1e"
+var build = "1f"
 var release = "1"
 
 type console struct {
-	in                  *bufio.Reader
-	out                 io.Writer
-	rich, color, motion bool
+	in                               *bufio.Reader
+	out                              io.Writer
+	terminalInput                    *os.File
+	rich, color, motion, interactive bool
 }
 
 func (c console) ask(label string) (string, error) {
@@ -41,19 +42,49 @@ func (c console) ask(label string) (string, error) {
 	return strings.TrimSpace(s), nil
 }
 func (c console) secret() (string, error) {
-	if s := os.Getenv("CODEZ_API_KEY"); s != "" {
-		return s, nil
+	env := strings.TrimSpace(os.Getenv("CODEZ_API_KEY"))
+	if !c.interactive && env != "" {
+		return validateAPIKey(env)
 	}
-	return c.hiddenInput("API key (empty for local endpoint): ")
+	label := "API key (empty for unauthenticated endpoint): "
+	if env != "" {
+		label = "API key (type :env to use CODEZ_API_KEY; empty for unauthenticated endpoint): "
+	}
+	key, err := c.hiddenInput(label)
+	if err != nil {
+		return "", err
+	}
+	if key == ":env" && env != "" {
+		key = env
+	}
+	return validateAPIKey(key)
+}
+func validateAPIKey(key string) (string, error) {
+	key = strings.TrimSpace(key)
+	if strings.IndexFunc(key, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) >= 0 {
+		return "", errors.New("API key contains whitespace or control characters; paste only the key, without headers")
+	}
+	return key, nil
 }
 func (c console) hiddenInput(label string) (string, error) {
-	if st, e := os.Stdin.Stat(); e == nil && st.Mode()&os.ModeCharDevice != 0 {
-		cmd := exec.Command("stty", "-echo")
-		cmd.Stdin = os.Stdin
-		if e := cmd.Run(); e != nil {
-			return "", fmt.Errorf("cannot disable terminal echo: %w", e)
+	if c.terminalInput != nil {
+		cmd := exec.Command("stty", "-g")
+		cmd.Stdin = c.terminalInput
+		saved, err := cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("cannot read terminal settings: %w", err)
 		}
-		defer func() { cmd := exec.Command("stty", "echo"); cmd.Stdin = os.Stdin; _ = cmd.Run(); fmt.Fprintln(c.out) }()
+		cmd = exec.Command("stty", "-echo")
+		cmd.Stdin = c.terminalInput
+		if err := cmd.Run(); err != nil {
+			return "", fmt.Errorf("cannot disable terminal echo: %w", err)
+		}
+		defer func() {
+			cmd := exec.Command("stty", strings.TrimSpace(string(saved)))
+			cmd.Stdin = c.terminalInput
+			_ = cmd.Run()
+			fmt.Fprintln(c.out)
+		}()
 	}
 	return c.ask(label)
 }
@@ -315,10 +346,7 @@ func run() error {
 			cfg, key, e = c.setup()
 		}
 	} else {
-		key = os.Getenv("CODEZ_API_KEY")
-		if key == "" {
-			key, e = config.Secret()
-		}
+		key, e = config.APIKey()
 	}
 	if e != nil {
 		return e

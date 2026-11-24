@@ -26,23 +26,68 @@ type streamDecoder func(io.Reader, func(string)) (map[string]any, error)
 
 func (h *HTTPClient) modelJSON(ctx context.Context, url string, headers map[string]string, body map[string]any, decoder streamDecoder, out *map[string]any) error {
 	callback := textStream(ctx)
+	if callback != nil {
+		body["stream"] = true
+	}
 	if callback == nil {
-		if body["stream"] != true {
-			return h.JSON(ctx, "POST", url, headers, body, out)
-		}
 		callback = func(string) {}
 	}
-	body["stream"] = true
-	return h.request(ctx, "POST", url, headers, body, func(resp *http.Response) error {
-		if !strings.HasPrefix(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
-			return decodeJSON(resp.Body, out)
+	requestHeaders := make(map[string]string, len(headers)+1)
+	for k, v := range headers {
+		requestHeaders[k] = v
+	}
+	if body["stream"] == true {
+		requestHeaders["Accept"] = "text/event-stream, application/json"
+	}
+	return h.request(ctx, "POST", url, requestHeaders, body, func(resp *http.Response) error {
+		reader := bufio.NewReader(resp.Body)
+		// SSE permits a UTF-8 BOM. Remove it before either decoder sees the body.
+		if first, _ := reader.Peek(1); len(first) > 0 && first[0] == 0xef {
+			if bom, _ := reader.Peek(3); string(bom) == "\xef\xbb\xbf" {
+				_, _ = reader.Discard(3)
+			}
 		}
-		value, err := decoder(resp.Body, callback)
+		mediaType := strings.TrimSpace(strings.SplitN(resp.Header.Get("Content-Type"), ";", 2)[0])
+		if !strings.EqualFold(mediaType, "text/event-stream") && !looksLikeSSE(reader) {
+			return decodeJSON(reader, out)
+		}
+		value, err := decoder(reader, callback)
 		if err == nil {
 			*out = value
 		}
 		return err
 	})
+}
+
+// Some proxies replace the event stream Content-Type. Detect only exact SSE
+// field prefixes, without consuming data or waiting for the whole response.
+func looksLikeSSE(r *bufio.Reader) bool {
+	for i := 0; i < 64; i++ {
+		b, err := r.Peek(i + 1)
+		if err != nil {
+			return false
+		}
+		var prefix string
+		switch b[i] {
+		case '\r', '\n', ' ', '\t':
+			continue
+		case ':':
+			return true
+		case 'e':
+			prefix = "event:"
+		case 'd':
+			prefix = "data:"
+		case 'i':
+			prefix = "id:"
+		case 'r':
+			prefix = "retry:"
+		default:
+			return false
+		}
+		b, _ = r.Peek(i + len(prefix))
+		return len(b) >= i+len(prefix) && string(b[i:]) == prefix
+	}
+	return false
 }
 
 // consumeEvents accepts SSE comments and multi-line data fields. Bounds are per stream.
