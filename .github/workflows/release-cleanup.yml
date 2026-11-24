@@ -1,0 +1,30 @@
+name: One-time release cleanup
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-cleanup.yml']
+permissions:
+  contents: write
+concurrency:
+  group: codez-release
+  cancel-in-progress: false
+jobs:
+  remove-old-release:
+    if: github.repository == 'rollzian/CodEz' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Retain 1h-1 and remove only 1c-1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="repos/$GITHUB_REPOSITORY/releases"
+          releases=$(gh api --paginate "$endpoint?per_page=100" | jq -s 'add')
+          jq -e 'any(.[]; .id == 456924495 and .tag_name == "1h-1" and .draft == false and any(.assets[]; .name == "codez.1h-1.deb" and .state == "uploaded"))' <<< "$releases" >/dev/null
+          if jq -e 'any(.[]; .id == 456752132 and .tag_name == "1c-1" and .draft == false)' <<< "$releases" >/dev/null; then
+            gh api --method DELETE "$endpoint/456752132"
+          fi
+          remaining=$(gh api --paginate "$endpoint?per_page=100" | jq -s 'add')
+          jq -e 'length == 1 and .[0].id == 456924495 and .[0].tag_name == "1h-1" and any(.[0].assets[]; .name == "codez.1h-1.deb" and .state == "uploaded")' <<< "$remaining" >/dev/null
