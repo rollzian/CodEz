@@ -146,7 +146,7 @@ function adminView(array $cfg): string {
     $db=db($cfg); $html='<section class="section page"><h1>Moderation.</h1><h2>Pending versions</h2><div class="records">';
     foreach(query($db,"SELECT v.id,v.version,v.sha256,v.filename,e.title,e.publisher FROM versions v JOIN extensions e ON e.id=v.extension WHERE v.state='pending' ORDER BY v.id LIMIT 100") as $x) {
         $html.='<article><div><strong>'.e($x['title']).' '.e($x['version']).'</strong><p>'.e($x['filename']).'</p><code class="hash">'.e($x['sha256']).'</code></div>';
-        $html.=actionButton('/marketplace/action','moderate','Reject',['version_id'=>$x['id'],'state'=>'rejected']).'</article>';
+        $html.=actionButton('/admin/package/'.$x['id'],'inspect','Inspect package').actionButton('/marketplace/action','moderate','Approve',['version_id'=>$x['id'],'state'=>'approved']).actionButton('/marketplace/action','moderate','Reject',['version_id'=>$x['id'],'state'=>'rejected']).'</article>';
     }
     $html.='</div><h2>Reports</h2>';
     foreach(query($db,"SELECT r.id,r.version,r.reason,e.title FROM reports r JOIN versions v ON v.id=r.version JOIN extensions e ON e.id=v.extension WHERE r.state='open' ORDER BY r.id LIMIT 100") as $x) $html.='<article><strong>'.e($x['title']).'</strong><p>'.e($x['reason']).'</p>'.actionButton('/marketplace/action','moderate','Reject version',['version_id'=>$x['version'],'state'=>'rejected']).actionButton('/marketplace/action','close_report','Close report',['report_id'=>$x['id']]).'</article>';

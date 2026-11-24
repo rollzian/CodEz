@@ -91,14 +91,18 @@ function marketAction(array $cfg): never {
         throw $ex;
     }
 }
-function marketDownload(array $cfg,int $id): never {
+function marketDownload(array $cfg,int $id,bool $inspection=false): never {
     csrf(); $u=requireUser($cfg); limit($cfg,'download',$u['id'],30); $db=db($cfg);
-    $v=query($db,"SELECT filename,encode(package,'base64') data,sha256 FROM versions WHERE id=? AND state='approved'",[$id])->fetch();
+    if ($inspection && !admin($cfg,$u)) fail(403,'Access denied');
+    $sql="SELECT filename,encode(package,'base64') data,sha256 FROM versions WHERE id=?".($inspection?'':" AND state='approved'");
+    $v=query($db,$sql,[$id])->fetch();
     if (!$v) fail(404,'Version not found');
     $data=base64_decode($v['data'],true);
     if ($data===false||!hash_equals($v['sha256'],hash('sha256',$data))) fail(503,'Package integrity check failed');
-    publisher($db,$u);
-    query($db,'INSERT INTO downloads(version,author) VALUES(?,?) ON CONFLICT DO NOTHING',[$id,$u['id']]);
+    if (!$inspection) {
+        publisher($db,$u);
+        query($db,'INSERT INTO downloads(version,author) VALUES(?,?) ON CONFLICT DO NOTHING',[$id,$u['id']]);
+    }
     header('Content-Type: application/octet-stream'); header('Content-Disposition: attachment; filename="'.$v['filename'].'"');
     header('Content-Length: '.strlen($data)); session_write_close(); echo $data; exit;
 }

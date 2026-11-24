@@ -33,6 +33,7 @@ try {
         if (preg_match('~\A/(workspaces|teams|friends|projects)\z~',$path,$m)) cloudAction($cfg,$m[1]);
         if ($path==='/marketplace/action') marketAction($cfg);
         if (preg_match('~\A/marketplace/package/([1-9][0-9]{0,17})\z~',$path,$m)) marketDownload($cfg,(int)$m[1]);
+        if (preg_match('~\A/admin/package/([1-9][0-9]{0,17})\z~',$path,$m)) marketDownload($cfg,(int)$m[1],true);
         fail(404,'Not found');
     }
     $user=me($cfg);
