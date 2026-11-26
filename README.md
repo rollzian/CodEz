@@ -1,192 +1,136 @@
 <div align="center">
 
-# CodEz
+# CodEz Studio Bridge
 
-### Your terminal. Your models. Your code.
+**Local tools. Controlled actions. One MCP connection.**
 
-A keyboard-first coding agent by **AuxiaCorp**.
+Browser automation, video editing and vision-guided desktop interaction for CodEz Studio and compatible MCP hosts.
 
-[![Source viewing only](https://img.shields.io/badge/LICENSE-PROPRIETARY-8B5CF6?style=flat-square)](LICENSE)
-[![CI](https://github.com/rollzian/CodEz/actions/workflows/ci.yml/badge.svg)](https://github.com/rollzian/CodEz/actions/workflows/ci.yml)
-[![Published release](https://img.shields.io/github/v/release/rollzian/CodEz?include_prereleases&style=flat-square&color=8b5cf6)](https://github.com/rollzian/CodEz/releases)
-[![Platform](https://img.shields.io/badge/PLATFORM-LINUX-555555?style=flat-square)](#the-interface)
+[![Version](https://img.shields.io/badge/version-0.2.0-8b5cf6?style=flat-square)](#release-gate-020)
+[![Python](https://img.shields.io/badge/python-3.11%2B-555555?style=flat-square)](pyproject.toml)
+[![License](https://img.shields.io/badge/license-proprietary-555555?style=flat-square)](LICENSE)
+[![Status](https://img.shields.io/badge/status-release%20candidate-555555?style=flat-square)](#release-gate-020)
 
-[Capabilities](#capabilities) · [Interface](#the-interface) · [Architecture](#architecture) · [Cloud](#auxia-cloud) · [License](#license)
+[Установка](#установка) · [MCP](#подключение-к-mcp-host) · [Browser](#браузер) · [Vision](#рабочий-стол-и-vision) · [Resolve](#davinci-resolve) · [Проверки](#проверки)
 
 </div>
 
 ---
 
-> [!IMPORTANT]
-> **Proprietary software. Public source viewing only.**
-> Copyright © 2026 AuxiaCorp. All rights reserved. No new permission to install, run, modify, redistribute or commercialize CodEz is granted to the public. Separate written authorization is required, subject to applicable law, GitHub's terms and previously granted licenses.
-
-## Project overview
-
-CodEz combines local repository tools, model discovery, streaming responses, persistent conversations and optional team collaboration in one terminal application.
-
-| Current published build | Language | Interface |
-| :--- | :--- | :--- |
-| **0.7.7 / #1h-1** | Go | Linux TUI |
-
-This published build is a release candidate. The repository is available for inspection; releases published under the previous MIT license retain their original terms.
+> **Отдельный локальный модуль**, не исходники Rust IDE и не замена CLI CodEz. Все серверы отключены по умолчанию. Новая лицензия допускает публичный просмотр исходников; использование требует разрешения правообладателя с учётом ранее предоставленных прав и применимого законодательства.
 
 ## Capabilities
 
-| Code | Navigate | Collaborate |
+| Subsystem | Interface | Verification |
 | :--- | :--- | :--- |
-| Read, search and edit repositories | Keyboard-first model selection | Personal and team workspaces |
-| Stream AI responses | Independent local conversations | Seven server-enforced roles |
-| Run approved shell commands | Command palette and history | Invitations and friend requests |
-| Review Git changes | Local Skills library | Public project directory |
-
-## The interface
-
-```text
-  CODEZ                              workspace / main
-
-  Model       Selected provider model
-  Mode        Code
-
-  › What would you like to build?
-
-  ← Chats   Ctrl+K Menu   Ctrl+P Models   Shift+Tab Mode
-```
-
-*Illustrative layout, not a captured screenshot.*
-
-### Choose your model
-
-CodEz supports OpenAI Responses, Anthropic Messages and OpenAI-compatible chat APIs. Use a remote provider or a local server such as Ollama or LM Studio. The model catalog supports search and keyboard selection; pricing and ranking data depend on the provider.
-
-### Choose your mode
-
-| Mode | Access |
-| :--- | :--- |
-| Code | Repository tools and approved mutations |
-| Ask | Read-only tools |
-| Plan | Read-only tools |
-| Review | Read-only tools |
-
-## Keyboard shortcuts
-
-| Keys | Action | Keys | Action |
-| :--- | :--- | :--- | :--- |
-| ← / → | Chats / return | Ctrl+K | Command palette |
-| Ctrl+← | Workspaces | Ctrl+N | New chat |
-| Ctrl+→ | Teams | Ctrl+P | Models |
-| Ctrl+↑ | Friends | Ctrl+H | Prompt history |
-| Ctrl+↓ | Public projects | Ctrl+F | Search chats |
-| Ctrl+S | Save | Ctrl+L | Clear |
-| Ctrl+R | Recall prompt | Shift+Tab | Switch mode |
-
-Arrow keys edit nonempty input. Some shortcuts depend on terminal support. Use `CODEZ_SIMPLE_UI=1` for numbered menus and line input.
-
-## Architecture
+| Browser | 19 tools · Playwright | Real Chromium DOM test |
+| DaVinci Resolve | 26 tools · Scripting API | Contract fixtures; live Resolve unverified |
+| Desktop | 9 tools · X11 / Win32 / Wayland | Live X11; Windows and Wayland pending |
+| MCP | Tools, resources, prompts | Stdio and Streamable HTTP tests |
+| OAuth | Registered clients · PKCE | Local authorization/refresh fixtures |
+| Vision | Chat Completions · image input | Test model endpoint + real X11 window |
 
 ```mermaid
 flowchart LR
-    UI["Terminal UI"] --> Agent["Coding agent"]
-    Agent --> Provider["Provider adapters"]
-    Provider --> APIs["Remote / local models"]
-    Agent --> Tools["Repository tools"]
-    Tools --> Repo["Local workspace"]
-    UI --> Sessions["Local chats"]
-    UI --> Skills["Local Skills"]
-    UI --> Cloud["Optional Auxia client"]
-    Cloud --> Service["Cloud API"]
-    Service --> DB["SQLite"]
+    H["CodEz Studio / MCP host"] --> B["Local Bridge"]
+    B --> C["Browser"]
+    B --> R["DaVinci Resolve"]
+    B --> D["Desktop adapter"]
+    B --> M["External MCP server"]
+    V["Vision model"] --> B
 ```
 
-The CLI remains usable without an Auxia account. Cloud sessions and provider credentials are separate.
+Permissions are local, server-scoped and deny by default. Screen sharing is explicit; emergency stop terminates local work without promising rollback of already executed actions.
 
-## Usage and security
-
-<details>
-<summary>Provider authentication, model discovery and terminal settings</summary>
-
-Configure a provider and model on first launch. OpenAI and OpenRouter offer account sign-in or API-key authentication. ChatGPT sign-in opens the default browser when available and prints the official authorization URL as a fallback; approval returns through a loopback callback. Use the browser on the same machine. It uses an eligible ChatGPT plan, not a free API entitlement. OpenRouter sign-in prints a PKCE authorization URL and accepts the one-time code. Claude Console sign-in is a browser link for creating an API key; Claude subscription OAuth is not implemented. Custom providers require an OpenAI-compatible base URL and API key (empty for unauthenticated local servers). ChatGPT credentials are stored separately in an owner-only file, with refresh before requests. Live account authorization has not been verified; OAuth protocol tests use deterministic local fixtures. Supported protocols: OpenAI Responses, Anthropic Messages and OpenAI-compatible Chat Completions (including local endpoints). The model library discovers available models and uses arrow keys, Enter, search (/), filters (Tab), pagination (left/right), and Escape. OpenRouter supplies actual price and benchmark ordering; other providers expose only their available metadata. `/models [filter]` and `/model` open the library; `/model <id>` remains an explicit command. HTTP 401 triggers a forced ChatGPT token refresh when possible; rejected API keys require reconfiguration. Model discovery is checked before saving setup; `/setup` reconfigures; `/resume` loads recent history; `/new` creates an independent chat. `/status` shows the current model and session; `/clear` redraws the terminal.
-
-Set `CODEZ_SIMPLE_UI=1` for numbered line-based selection. The terminal uses ANSI styling and live tool progress when attached to a TTY. Model responses stream via SSE by default; `CODEZ_NO_STREAM=1` selects non-streaming requests. `NO_COLOR=1` disables colors and animated progress; `CODEZ_NO_MOTION=1` disables animation only. Redirected output is free of ANSI formatting.
-
-Repository tools: list, search, read, atomic write, exact text replacement, Git status/diff and shell execution. File mutations and shell execution require approval; shell commands run with the current user's OS permissions, not in a sandbox. Only known unsafe command patterns are additionally blocked. Credentials use a private `0600` file (not encrypted); `CODEZ_API_KEY` is accepted in noninteractive setup or by typing `:env` at the interactive key prompt. Saved credentials take priority on restart.
-
-This is a release candidate, not a complete production-ready implementation. Live external provider credentials, MCP, automated deployment adapters, full context compaction and Arch installation are not verified or not implemented. Local tests cover SSE decoding for all three protocols; the smoke test exercises a deterministic HTTP provider and actual file changes, not a paid external API.
-
-### Navigation and local chats
-
-The interactive terminal clears on startup and shows the current Git branch when available. It restores the active local conversation (up to 80 recent events). `←` on empty input opens Chats; `→` returns from the list. `Ctrl+←/→/↑/↓` open Workspaces, Teams, Friends and Public Projects. `Ctrl+K` opens the palette, `Ctrl+N` creates a chat, `Ctrl+P` opens models, `Ctrl+H` on empty input opens prompt history, `Ctrl+F` searches chat titles, `Ctrl+S` flushes the current chat, `Ctrl+L` clears, `Ctrl+R` recalls a previous prompt, and `Shift+Tab` cycles modes. Arrow keys edit nonempty input. Bracketed paste preserves newlines in the submitted prompt; the editor displays a single horizontally scrolling line. `/chats` lists up to 500 recent chats in the current workspace. Drafts survive panel switches during the running process; they are not synced or persisted across restarts. `CODEZ_SIMPLE_UI=1` retains line input and numbered menus.
-
-`/mode` offers Code, Ask, Plan and Review. Ask, Plan and Review advertise only read-only tools and reject model-requested mutations and shell commands. `/doctor` reports local config and Git availability. The system prompt reflects the selected provider model ID. `/skills` discovers `SKILL.md` in `.codez/skills/<name>/` and `$XDG_CONFIG_HOME/codez/skills/<name>/`, previews contents and asks before enabling them. Up to four local skills per process, each limited to 32 KiB; no script execution or remote installation.
-
-</details>
-
-## Auxia Cloud
-
-`/menu` opens the command palette. `/auxia` opens the collaboration hub; `/workspaces`, `/teams`, `/friends`, and `/projects` open individual collections. `codez --auxia` is available without configuring an AI provider. Cloud sign-in opens an Auxia device-confirmation page in the browser. It does not send AI provider API keys to Auxia. The separate revocable Cloud session is stored in an owner-only file.
-
-Personal and team workspaces are persistent metadata, not remote execution environments or synchronized source trees. Teams use explicit invitations and acceptance. Roles are Owner, Admin, Maintainer, Developer, Reviewer, Viewer and Guest. Only owners assign roles. Owner/Admin manage invitations and members; Admin cannot remove another Admin. Owner/Admin/Maintainer manage team workspace metadata; Developer creates and deletes their own team workspaces while a member. Reviewer/Viewer are read-only; Guest also cannot list members. Legacy members migrate to Developer. Friend requests require acceptance. Public projects publish a name and HTTPS repository link, not local files. Lists are limited to 200 items in this release.
-
-The included `cloud/app.py` is an independently deployable service backed by SQLite. It must be mounted at `https://auxia.space/codez-cloud`; the domain's existing authentication backend and OAuth client registration were unavailable for live integration. No new Auxia password database is created. The service uses the existing identity provider's authorization-code + PKCE and authenticated userinfo endpoints. Register the callback `https://auxia.space/codez-cloud/oauth/callback` in that provider and configure the following server-only environment variables:
-
-- `CODEZ_CLOUD_DB`: absolute path to a private database outside the public web root.
-- `AUXIA_OAUTH_AUTHORIZE`, `AUXIA_OAUTH_TOKEN`, `AUXIA_OAUTH_USERINFO`: actual HTTPS endpoints from the Auxia identity provider. The authorization URL defaults to `https://auxia.space/api/login` as requested; confirm that it implements OAuth authorization-code + PKCE before deployment. Token and userinfo endpoints and client registration are required; this live contract was not verified.
-- `AUXIA_OAUTH_CLIENT_ID`, `AUXIA_OAUTH_CLIENT_SECRET` (if required), `AUXIA_OAUTH_SCOPE` (default `openid profile`).
-
-Local smoke: `python3 cloud/app.py` binds to `127.0.0.1:8088`. For public deployment, serve `cloud.app:create_app()` with a production WSGI server, behind the existing HTTPS reverse proxy at `/codez-cloud/`. Rate-limit anonymous device-start and login requests at the reverse proxy; do not log query strings or authorization headers. Use a restricted OS account and back up the SQLite database. The built-in WSGI server is for local testing only.
-
-Verify with `python3 -m unittest discover -s cloud` and `go test ./...`. Local tests simulate the identity provider; live Auxia sign-in requires server deployment and a registered client.
-
-## Authorized development
-
-The following commands are for the rights holder and users with separate permission.
-
-```bash
-go vet ./...
-go test ./...
-go test -race ./...
-CGO_ENABLED=0 go build -trimpath -o codez ./cmd/codez
-python3 scripts/smoke.py ./codez
-bash scripts/build-deb.sh
-```
+## Source layout
 
 | Directory | Responsibility |
 | :--- | :--- |
-| [cmd/codez](cmd/codez) | Terminal UI and agent orchestration |
-| [internal/provider](internal/provider) | Model discovery and API adapters |
-| [internal/session](internal/session) | Local chat persistence |
-| [internal/tools](internal/tools) | Repository and execution tools |
-| [internal/skills](internal/skills) | Local skill discovery |
-| [cloud](cloud) | Optional collaboration backend |
-| [scripts](scripts) | Packaging and smoke tests |
+| [studio_bridge](studio_bridge) | MCP transport, policy, OAuth, browser, desktop, Resolve and Vision |
+| [examples](examples) | Example configurations and tool catalog |
+| [tests](tests) | Protocol, adapter, permission and integration tests |
+| [scripts](scripts) | Package build and smoke checks |
 
-## Project status
+## Установка
 
-MCP execution, automated deployment adapters, full context compaction and production Auxia integration remain unfinished in the published build. Live provider authentication and native Arch installation have not been independently verified.
+Debian/Ubuntu с Python 3.11+: `sudo apt install ./codez-studio-bridge_0.2.0-1_all.deb`.
+Portable: `python3 codez-studio-bridge.pyz --version`. Вместо `codez-studio-bridge` можно использовать `python3 /absolute/path/codez-studio-bridge.pyz`.
 
-## License
+```sh
+codez-studio-bridge init --config "$HOME/.config/codez/bridge.json" --workspace "$PWD"
+codez-studio-bridge doctor --config "$HOME/.config/codez/bridge.json"
+codez-studio-bridge tools --config "$HOME/.config/codez/bridge.json"
+```
 
-**CodEz Proprietary Source-Viewing License**
+Для браузера установите в тот же Python официальные зависимости [Playwright](https://playwright.dev/python/docs/intro) и Pillow; для X11 также python-xlib. Для Playwright потребуется установленный браузер. Используйте виртуальное окружение и его интерпретатор с `.pyz`, если системный Python защищён от pip. Пакет не скачивает SDK и не содержит сторонних библиотек.
 
-| Public access | Permission under the new license |
-| :--- | :--- |
-| Read source and documentation on GitHub | Allowed |
-| Install, execute or deploy | Written permission required |
-| Modify or redistribute | Written permission required |
-| Commercial or noncommercial reuse | Written permission required |
+## Подключение к MCP host
 
-This table summarizes the new license, not the rights previously granted under MIT or GitHub's Terms of Service. GitHub permits users to view and fork public repositories through its service. The new license does not withdraw existing MIT permissions or change third-party licenses.
+Команда: `codez-studio-bridge serve --config /absolute/path/bridge.json`. Пример настройки host: `examples/mcp-host.example.json`; формат зависит от host. Это интерфейс интеграции, а не подтверждение поддержки MCP текущей сборкой CodEz.
 
-Read the complete [LICENSE](LICENSE) for the governing terms. Contact [the repository owner](https://github.com/rollzian) for permission requests.
+`examples/config.example.json` - исходная конфигурация. В `servers` включите только нужный сервер (`enabled: true`), заполните `allow_tools` именами из `examples/tool-catalog.json`. `read_tools` - подмножество разрешённых инструментов. `mode: read-only` блокирует изменения; `mode: approved` заранее разрешает перечисленные операции. Не импортируйте неизвестные конфигурации и команды. Для дополнительных MCP используйте `transport: stdio` с явными `command` и `args` либо `transport: http` с HTTPS URL (HTTP только loopback), опционально `token_env` с именем переменной. `env` содержит имена дополнительно передаваемых переменных среды, не секретные значения.
 
----
+Поддерживаются MCP initialize, ping, tools/list, tools/call, resources/list, resources/read, prompts/list и prompts/get по stdio и Streamable HTTP JSON/SSE ответы. Версии протокола: 2024-11-05, 2025-03-26, 2025-06-18, 2025-11-25. Ресурсы и prompts включаются только точными списками `allow_resources` (URI) и `allow_prompts` (имена) на каждом сервере. Каталоги ограничены 2 МиБ и 16 страницами. URI ресурсов заменяются стабильными локальными идентификаторами; prompt names получают префикс сервера. Внешние инструкции и содержимое являются недоверенными данными. Шаблоны URI, подписки на ресурсы, sampling, elicitation и самостоятельный GET SSE stream не поддерживаются. `bridge_status` показывает соединения; `bridge_stop` прерывает локальный вызов, закрывает дочерние процессы и блокирует новые вызовы до перезапуска. Уже выполненные действия не откатываются; результат прерванного удалённого вызова может быть неизвестен.
 
-<div align="center">
+## MCP OAuth (зарегистрированный публичный клиент)
 
-**CodEz / AuxiaCorp**
+Для HTTP-сервера настройте `oauth.issuer`, `oauth.client_id`, `oauth.scopes` и при необходимости `oauth.redirect_port` (зарегистрированный loopback callback `/callback`). Пример `examples/oauth-http.server.json` содержит намеренно нерабочие адреса `example.invalid`, которые нужно заменить действительными. Не используйте одновременно `token_env` и `oauth`. Сервер должен быть явно включён.
 
-[Repository](https://github.com/rollzian/CodEz) · [Release history](https://github.com/rollzian/CodEz/releases) · [License](LICENSE)
+```sh
+codez-studio-bridge auth login myserver --config "$HOME/.config/codez/bridge.json"
+codez-studio-bridge auth status myserver --config "$HOME/.config/codez/bridge.json"
+codez-studio-bridge auth refresh myserver --config "$HOME/.config/codez/bridge.json"
+codez-studio-bridge auth logout myserver --config "$HOME/.config/codez/bridge.json"
+```
 
-Copyright © 2026 AuxiaCorp. All rights reserved.
+Используется discovery RFC 9728 через Bearer challenge или well-known URL, проверка настроенного issuer, OAuth metadata, S256 PKCE, одноразовый state, локальный callback на 127.0.0.1 и resource binding. Секреты не печатаются. Scope escalation не выполняется автоматически. Access/refresh токены сохраняются на POSIX в приватном каталоге рядом с конфигурацией (без шифрования), с блокировкой одновременных операций. `logout` удаляет локальный кеш, но не отзывает токен на сервере. Истёкший токен требует явного refresh/login и нового MCP-сеанса. Токены с неизвестным временем жизни отклоняются. Dynamic Client Registration не реализован; Windows использует ранее существовавший `token_env`. Поддержка конкретного identity provider требует интеграционной проверки. Никакая ошибочная мутация не повторяется автоматически.
 
-</div>
+## Браузер
+
+Встроенный адаптер использует Python Playwright. В `browser.origins` укажите точные разрешённые origin (схема, хост и порт), например `http://localhost:3000` для своего проекта. `engine`: chromium, firefox или webkit; необходим соответствующий установленный браузер. `headless: false` открывает видимое окно, `sandbox: true` рекомендуется оставлять включённым. Контекст отдельный, без профиля пользователя. Загрузку локальных файлов разрешает `allow_uploads: true`; файл должен находиться в workspace. Для скачивания задайте существующий `downloads_dir` внутри workspace. `allow_websockets` отключён по умолчанию.
+
+Для официального Microsoft Playwright MCP есть `examples/playwright-mcp.server.json`. Установите совместимый релиз по инструкции [репозитория](https://github.com/microsoft/playwright-mcp), проверьте путь команды, инструменты и правила доступа перед включением. Внешний сервер выполняется со своими правами и не наследует встроенную фильтрацию origin. Встроенный фильтр тоже не является сетевой песочницей ОС.
+
+## Рабочий стол и Vision
+
+Linux X11/XTEST + Pillow; Win32/GDI/SendInput на Windows 10/11. Wayland: добавлен XDG ScreenCast/RemoteDesktop + PipeWire; проверен контракт адаптера, не реальный композитор. macOS не реализована. На X11 нужен TrueColor и доступ к выбранному дисплею. Используйте `desktop__windows` для списка окон, затем укажите точный `desktop.window_id`, при необходимости `title_contains`. Изменение требует перезапуска моста. Скриншоты и координатные операции ограничены выбранным активным окном; кадр одноразовый, устаревшие кадры отклоняются. Это не песочница ОС. Не используйте на окнах с секретными данными. X11-ввод текста ограничен ASCII и текущей раскладкой, Win32 использует Unicode.
+
+Заполните `vision.model` действительным ID vision-модели, `base_url` совместимым Chat Completions endpoint, передайте ключ через `CODEZ_VISION_API_KEY`. `output_token_field` поддерживает `max_completion_tokens` и `max_tokens`. Включите desktop и разрешите необходимые инструменты. Для действий нужен `mode: approved`.
+
+```sh
+codez-studio-bridge vision --config "$HOME/.config/codez/bridge.json" \
+  --task 'Проверь интерфейс выбранного тестового приложения' --allow-screen --steps 8
+```
+
+`--allow-screen` - явное согласие на отправку снимков выбранного окна или явно выбранного через портал монитора провайдеру в рамках запуска. Действия требуют подтверждения в терминале, если не передан `--approve-actions` (только уже разрешённые операции). Не включайте preapproval для чувствительных приложений. Ctrl+C останавливает локальную сессию. Ответ `model_reported_done` означает заявление модели о завершении, а не независимое доказательство результата. Нужен провайдер с совместимым форматом изображений и JSON-ответов.
+
+## Wayland
+
+Системные зависимости: PyGObject (GI), GStreamer 1.x, PipeWire (`pipewiresrc`), JPEG encoder, Pillow и работающий backend XDG Desktop Portal с нужным интерфейсом. Установка зависит от дистрибутива. Настройте `desktop.portal_scope` как `window` или `monitor`; на Wayland окно/монитор выбирается через системный диалог, не по `window_id`. Для интерактивного согласия увеличьте `servers.desktop.timeout` до 150-180 секунд.
+
+- По умолчанию доступны только снимки (если `screenshot` разрешён).
+- Для управления мышью установите `portal_scope: "monitor"`, `allow_portal_input: true`, `mode: "approved"` и явно разрешите соответствующие инструменты.
+- Для клавиатуры отдельно включите `allow_global_keyboard: true`. Клавиатурные события направляются в текущий фокус композитора, а не в изолированное окно. Vision требует подтверждения каждого действия при включённой глобальной клавиатуре.
+- Никакие постоянные portal grants и restore tokens не сохраняются. На закрытие сеанса или изменение размеров видеопотока требуется повторный запуск и новое согласие.
+
+Используются совместимые NotifyPointer/NotifyKeyboard методы RemoteDesktop portal; композиторы, требующие только ConnectToEIS, пока не поддерживаются. Реальная проверка на Wayland обязательна перед публичным релизом.
+
+## DaVinci Resolve
+
+Откройте установленный Resolve и настройте разрешённый внешний scripting API согласно документации вашей версии/редакции. Укажите фактические пути к `DaVinciResolveScript.py` (каталог `resolve.module_dir`) и библиотеке `resolve.script_library`, если необходима. Например, в некоторых Linux-установках используются `/opt/resolve/Developer/Scripting/Modules` и `/opt/resolve/libs/Fusion/fusionscript.so`. Укажите точное `project_name` и по возможности `project_id`. Для создания проекта явно включите `allow_create_project`. Для рендера задайте существующий `render_dir` внутри workspace. Мост управляет только заданиями, созданными в текущей сессии. Поддерживаются проекты, media pool, timeline, markers, render presets и очередь рендера, дорожки (создание, имя, enabled/locked), playhead, генерация субтитров встроенной функцией Resolve и вставка установленного Fusion Title. Доступность методов зависит от версии Resolve. Для нативного или стороннего MCP заполните `examples/resolve-native-mcp.server.json` реальным endpoint.
+
+## Проверки
+
+```sh
+python3 -m unittest discover -s tests -v
+CODEZ_X11_TEST=1 xvfb-run -a -s '-screen 0 1024x768x24' python3 -m unittest discover -s tests -v
+bash scripts/build.sh
+```
+
+Тесты используют временные каталоги, локальный HTTP fixture модели и отдельный X11 дисплей. Live browser navigation требует `CODEZ_LIVE_BROWSER_TEST=1`; в среде сборки запрещена административной политикой Chromium. Офлайн тест реального Chromium проверяет DOM, действия и скриншоты. API Resolve и Wayland проверены с тестовыми объектами; реальный Resolve, Wayland, Windows и внешний Vision API не проверены. Оригинальные Rust-исходники Studio отсутствовали, поэтому GUI не изменён. `call --approve` выполняет один вызов в новой сессии; для последовательности действий используйте `serve` или `vision`.
+
+## Release gate 0.2.0
+
+Для интерактивной Windows проверки: `set CODEZ_WINDOWS_TEST=1` в cmd и `python -m unittest discover -s tests -p test_windows_live.py -v`. Запускать только в изолированном интерактивном сеансе с Tkinter/Pillow. Для Resolve сначала проверьте установленную версию и отдельный тестовый проект; изменения на рабочих проектах не используются как smoke tests. Для Wayland запустите `serve`, откройте только тестовый экран и явно подтвердите запрос портала.
+
+Не считать эту сборку production-ready на всех платформах: нативный GUI исходного CodEz Studio недоступен, live тесты Windows, Wayland, Resolve и внешнего AI не выполнены. Browser origin routing не является полноценной сетевой песочницей; для строгой изоляции необходимы отдельные системные egress-политики.

@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "mode": "read-only",
+  "workspace": ".",
+  "servers": {
+    "browser": {
+      "enabled": false,
+      "transport": "builtin",
+      "adapter": "browser",
+      "timeout": 45,
+      "allow_tools": [
+        "tabs",
+        "read",
+        "snapshot",
+        "screenshot",
+        "console",
+        "network"
+      ],
+      "read_tools": [
+        "tabs",
+        "read",
+        "snapshot",
+        "screenshot",
+        "console",
+        "network"
+      ]
+    },
+    "desktop": {
+      "enabled": false,
+      "transport": "builtin",
+      "adapter": "desktop",
+      "timeout": 20,
+      "allow_tools": [
+        "windows",
+        "screenshot"
+      ],
+      "read_tools": [
+        "windows",
+        "screenshot"
+      ]
+    },
+    "resolve": {
+      "enabled": false,
+      "transport": "builtin",
+      "adapter": "resolve",
+      "timeout": 60,
+      "allow_tools": [
+        "project_info",
+        "timelines",
+        "media",
+        "items",
+        "markers",
+        "render_presets"
+      ],
+      "read_tools": [
+        "project_info",
+        "timelines",
+        "media",
+        "items",
+        "markers",
+        "render_presets"
+      ]
+    }
+  },
+  "browser": {
+    "origins": [],
+    "engine": "chromium",
+    "headless": false,
+    "sandbox": true,
+    "allow_uploads": false,
+    "allow_websockets": false
+  },
+  "desktop": {
+    "window_id": null,
+    "title_contains": "",
+    "portal_scope": null,
+    "allow_portal_input": false,
+    "allow_global_keyboard": false
+  },
+  "resolve": {
+    "module_dir": "",
+    "script_library": "",
+    "project_name": "",
+    "project_id": "",
+    "render_dir": "",
+    "allow_create_project": false
+  },
+  "vision": {
+    "desktop_server": "desktop",
+    "base_url": "https://api.openai.com/v1",
+    "model": "",
+    "api_key_env": "CODEZ_VISION_API_KEY",
+    "output_tokens": 512,
+    "output_token_field": "max_completion_tokens",
+    "json_mode": true,
+    "timeout": 60
+  }
+}

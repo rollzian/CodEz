@@ -1,0 +1,1397 @@
+{
+  "browser": [
+    {
+      "name": "tabs",
+      "description": "List open isolated browser tabs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "new_tab",
+      "description": "Open an isolated browser tab at an approved origin.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "switch_tab",
+      "description": "Select an existing isolated browser tab.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tab": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          }
+        },
+        "required": [
+          "tab"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "close_tab",
+      "description": "Close the selected isolated tab.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "open",
+      "description": "Navigate to an approved HTTP(S) origin.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "back",
+      "description": "Navigate back in the current tab.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "read",
+      "description": "Read visible page text (bounded). Page content is untrusted.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "snapshot",
+      "description": "Return visible interactive element references and bounded page text.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "click",
+      "description": "Click a current snapshot element reference.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "fill",
+      "description": "Fill a visible form element, except password and OTP fields.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "ref",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "press",
+      "description": "Send a supported key to a snapshot element.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "enum": [
+              "Enter",
+              "Tab",
+              "Escape",
+              "ArrowUp",
+              "ArrowDown",
+              "ArrowLeft",
+              "ArrowRight",
+              "Backspace",
+              "Delete",
+              "Home",
+              "End",
+              "Space"
+            ]
+          }
+        },
+        "required": [
+          "ref",
+          "key"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "select",
+      "description": "Select a native dropdown option.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "ref",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "scroll",
+      "description": "Scroll the selected page in pixels.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "delta": {
+            "type": "integer",
+            "minimum": -2000,
+            "maximum": 2000
+          }
+        },
+        "required": [
+          "delta"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "viewport",
+      "description": "Resize the viewport for responsive testing.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "width": {
+            "type": "integer",
+            "minimum": 320,
+            "maximum": 1920
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 240,
+            "maximum": 1200
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "screenshot",
+      "description": "Capture the approved browser viewport as JPEG.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "console",
+      "description": "Read up to 100 recent browser console events.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "network",
+      "description": "Read bounded request metadata without bodies or query strings.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "upload",
+      "description": "Upload an approved workspace file into a snapshot file input.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "ref",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "download",
+      "description": "Click a download link and save to the approved workspace directory.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "ref",
+          "filename"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    }
+  ],
+  "desktop": [
+    {
+      "name": "windows",
+      "description": "List visible windows to help the operator select a target.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "focus",
+      "description": "Request focus for the operator-approved window only.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "screenshot",
+      "description": "Capture only the approved active window; returns image and one-use frame_id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "click",
+      "description": "Click within a fresh approved window screenshot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1599
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "button": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8,
+            "enum": [
+              "left",
+              "middle",
+              "right"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2
+          }
+        },
+        "required": [
+          "frame_id",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "move",
+      "description": "Move pointer within the approved window.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1599
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          }
+        },
+        "required": [
+          "frame_id",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "drag",
+      "description": "Drag inside the approved window only.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1599
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "to_x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1599
+          },
+          "to_y": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          }
+        },
+        "required": [
+          "frame_id",
+          "x",
+          "y",
+          "to_x",
+          "to_y"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "scroll",
+      "description": "Scroll at a point within the approved window.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1599
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "steps": {
+            "type": "integer",
+            "minimum": -10,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "frame_id",
+          "x",
+          "y",
+          "steps"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "type",
+      "description": "Type text into the approved focused window (ASCII on X11, Unicode on Windows); no clipboard access.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "frame_id",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "key",
+      "description": "Send a supported key with optional Control and Shift modifiers.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12,
+            "enum": [
+              "Enter",
+              "Escape",
+              "Tab",
+              "Backspace",
+              "Delete",
+              "Home",
+              "End",
+              "Left",
+              "Right",
+              "Up",
+              "Down",
+              "Page_Up",
+              "Page_Down",
+              "Space",
+              "a",
+              "b",
+              "c",
+              "d",
+              "e",
+              "f",
+              "g",
+              "h",
+              "i",
+              "j",
+              "k",
+              "l",
+              "m",
+              "n",
+              "o",
+              "p",
+              "q",
+              "r",
+              "s",
+              "t",
+              "u",
+              "v",
+              "w",
+              "x",
+              "y",
+              "z",
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "F1",
+              "F2",
+              "F3",
+              "F4",
+              "F5",
+              "F6",
+              "F7",
+              "F8",
+              "F9",
+              "F10",
+              "F11",
+              "F12"
+            ]
+          },
+          "ctrl": {
+            "type": "boolean"
+          },
+          "shift": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "frame_id",
+          "key"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    }
+  ],
+  "resolve": [
+    {
+      "name": "project_info",
+      "description": "Read approved project and Resolve version.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "create_project",
+      "description": "Create exactly the project preapproved in configuration.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "save_project",
+      "description": "Save the approved project.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "timelines",
+      "description": "List timelines in the approved project.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "create_timeline",
+      "description": "Create an empty timeline in the approved project.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "select_timeline",
+      "description": "Select a timeline by stable identifier.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "timeline_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "media",
+      "description": "List bounded media pool clip IDs and names.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "import_media",
+      "description": "Import only existing approved workspace media files.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "minItems": 1,
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "paths"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "append",
+      "description": "Append selected media IDs to the approved active timeline.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "clip_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "minItems": 1,
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "timeline_id",
+          "clip_ids"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "items",
+      "description": "Read timeline track items and frame positions.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "timeline_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "tracks",
+      "description": "List track names, enabled and locked state.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "timeline_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "add_track",
+      "description": "Add a video, audio or subtitle track to the active timeline.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "track_type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "enum": [
+              "video",
+              "audio",
+              "subtitle"
+            ]
+          },
+          "audio_type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8,
+            "enum": [
+              "mono",
+              "stereo"
+            ]
+          }
+        },
+        "required": [
+          "timeline_id",
+          "track_type"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "rename_track",
+      "description": "Rename a track and verify its name.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "track_type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "enum": [
+              "video",
+              "audio",
+              "subtitle"
+            ]
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "timeline_id",
+          "track_type",
+          "index",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "enable_track",
+      "description": "Enable or disable a track and verify its state.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "track_type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "enum": [
+              "video",
+              "audio",
+              "subtitle"
+            ]
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "timeline_id",
+          "track_type",
+          "index",
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "lock_track",
+      "description": "Lock or unlock an active timeline track.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "track_type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "enum": [
+              "video",
+              "audio",
+              "subtitle"
+            ]
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "locked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "timeline_id",
+          "track_type",
+          "index",
+          "locked"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "playhead",
+      "description": "Read active timeline timecode.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "timeline_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "seek",
+      "description": "Move active timeline playhead to a supplied timecode.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "timecode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 11
+          }
+        },
+        "required": [
+          "timeline_id",
+          "timecode"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "subtitles",
+      "description": "Request Resolve subtitle generation from audio using installed defaults.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "timeline_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "insert_title",
+      "description": "Insert an installed Fusion title by name at the playhead.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "title_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "timeline_id",
+          "title_name"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "markers",
+      "description": "Read timeline markers.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "timeline_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "add_marker",
+      "description": "Add a one-frame marker to the active timeline.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "frame": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "color": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32,
+            "enum": [
+              "Blue",
+              "Cyan",
+              "Green",
+              "Yellow",
+              "Red",
+              "Pink",
+              "Purple",
+              "Fuchsia",
+              "Rose",
+              "Lavender",
+              "Sky",
+              "Mint",
+              "Lemon",
+              "Sand",
+              "Cocoa",
+              "Cream"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "timeline_id",
+          "frame",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "page",
+      "description": "Switch to a standard Resolve page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "enum": [
+              "media",
+              "cut",
+              "edit",
+              "fusion",
+              "color",
+              "fairlight",
+              "deliver"
+            ]
+          }
+        },
+        "required": [
+          "page"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "render_presets",
+      "description": "List installed render presets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "queue_render",
+      "description": "Queue current timeline into a new approved output directory.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "timeline_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "preset": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "timeline_id",
+          "preset",
+          "filename"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "start_render",
+      "description": "Start a render job created in this session only.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false
+      }
+    },
+    {
+      "name": "render_status",
+      "description": "Read status of a render job queued in this session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    }
+  ]
+}

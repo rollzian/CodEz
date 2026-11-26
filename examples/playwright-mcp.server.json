@@ -1,0 +1,9 @@
+{
+  "enabled": false,
+  "transport": "stdio",
+  "command": "playwright-mcp",
+  "args": ["--isolated"],
+  "timeout": 45,
+  "allow_tools": [],
+  "read_tools": []
+}

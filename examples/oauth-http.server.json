@@ -1,0 +1,16 @@
+{
+  "enabled": false,
+  "transport": "http",
+  "url": "https://mcp.example.invalid/mcp",
+  "timeout": 45,
+  "allow_tools": [],
+  "read_tools": [],
+  "allow_resources": [],
+  "allow_prompts": [],
+  "oauth": {
+    "issuer": "https://auth.example.invalid",
+    "client_id": "replace-with-registered-public-client-id",
+    "scopes": [],
+    "redirect_port": 0
+  }
+}

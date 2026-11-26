@@ -1,0 +1,9 @@
+[project]
+name = "codez-studio-bridge"
+version = "0.2.0"
+description = "Local MCP and visual automation bridge for CodEz Studio"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+codez-studio-bridge = "studio_bridge.__main__:main"

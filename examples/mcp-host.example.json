@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "codez-studio": {
+      "command": "codez-studio-bridge",
+      "args": ["serve", "--config", "/absolute/path/bridge.json"]
+    }
+  }
+}
