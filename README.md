@@ -11,7 +11,7 @@ A keyboard-first coding agent by **AuxiaCorp**.
 [![Published release](https://img.shields.io/github/v/release/rollzian/CodEz?include_prereleases&style=flat-square&color=8b5cf6)](https://github.com/rollzian/CodEz/releases)
 [![Platform](https://img.shields.io/badge/PLATFORM-LINUX-555555?style=flat-square)](#the-interface)
 
-[Capabilities](#capabilities) · [Interface](#the-interface) · [Architecture](#architecture) · [Cloud](#auxia-cloud) · [License](#license)
+[Capabilities](#capabilities) · [Interface](#the-interface) · [Architecture](#architecture) · [Cloud](#auxia-cloud) · [Studio Bridge](#codez-studio-bridge) · [License](#license)
 
 </div>
 
@@ -30,6 +30,26 @@ CodEz combines local repository tools, model discovery, streaming responses, per
 | **0.7.7 / #1h-1** | Go | Linux TUI |
 
 This published build is a release candidate. The repository is available for inspection; releases published under the previous MIT license retain their original terms.
+
+## CodEz Studio Bridge
+
+[![Bridge](https://img.shields.io/badge/BRIDGE-0.2.0-8b5cf6?style=flat-square)](https://github.com/rollzian/CodEz/tree/studio-bridge)
+
+An independent local MCP module for CodEz Studio and compatible hosts.
+
+| Integration | Capabilities |
+| :--- | :--- |
+| Browser | 19 Playwright tools |
+| DaVinci Resolve | 26 scripting tools |
+| Computer Use | 9 desktop tools; X11, Win32 and Wayland adapters |
+| MCP | Stdio, Streamable HTTP, resources, prompts and registered-client OAuth |
+| Vision | Image-based desktop interaction with local permission checks |
+
+[**Explore Bridge source and documentation**](https://github.com/rollzian/CodEz/tree/studio-bridge)
+
+Bridge 0.2.0 is a separate release candidate. Its previous test run passed 33 of 35 tests (2 skipped), including live X11 interaction and Chromium DOM checks. Windows, Wayland, live Resolve and external Vision API integrations still require validation. The Bridge is not bundled into the current CLI release, and the Studio GUI is not included.
+
+The dedicated branch is temporary source hosting until a separate Studio repository is available. Do not merge its standalone tree into `main`.
 
 ## Capabilities
 
