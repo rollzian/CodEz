@@ -81,3 +81,28 @@ func TestComposerCursorAndRecall(t *testing.T) {
 		t.Fatal(string(d.text))
 	}
 }
+
+func TestChatModeRejectsUnexpectedTools(t *testing.T) {
+	r, e := tools.New(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	if got := modeChat.definitions(r.Definitions()); len(got) != 0 {
+		t.Fatal("Chat mode advertised tools", got)
+	}
+	for _, d := range r.Definitions() {
+		if modeChat.allows(d.Name) {
+			t.Fatal("Chat mode permits", d.Name)
+		}
+	}
+	p := &forbiddenProvider{t: t}
+	var out bytes.Buffer
+	c := console{out: &out}
+	_, e = c.turn(context.Background(), p, r, []provider.Message{{Role: "system", Content: systemPrompt("base", "test-model", modeChat)}}, "", modeChat)
+	if e == nil || !strings.Contains(e.Error(), "no tools executed") || p.denied {
+		t.Fatal("unexpected tool request was not rejected before continuation", e, p.denied)
+	}
+	if _, e = os.Stat(filepath.Join(r.Root, "unexpected.txt")); !os.IsNotExist(e) {
+		t.Fatal("Chat mode executed tool", e)
+	}
+}

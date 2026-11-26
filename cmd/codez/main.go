@@ -263,6 +263,9 @@ func (c console) turn(ctx context.Context, p provider.Provider, r *tools.Registr
 		if len(res.ToolCalls) == 0 {
 			return redact(res.Text, key), nil
 		}
+		if len(defs) == 0 {
+			return "", errors.New("model returned tool calls in Chat mode; no tools executed")
+		}
 		outs := map[string]string{}
 		if len(res.ToolCalls) > 32 {
 			return "", errors.New("too many tool calls")
@@ -432,7 +435,7 @@ func run() error {
 			c.success("Agent mode: " + string(mode))
 			continue
 		case "/mode":
-			choice, err := c.selectMenu("Agent mode", "Read-only modes cannot run shell or edit files", []string{"Code · make changes", "Ask · answer questions", "Plan · design a solution", "Review · inspect changes"}, false)
+			choice, err := c.selectMenu("Agent mode", "Read-only modes cannot run shell or edit files", []string{"Code · make changes", "Ask · answer questions", "Plan · design a solution", "Review · inspect changes", "Chat · no tools"}, false)
 			if err == nil {
 				if n, err := strconv.Atoi(choice); err == nil && n >= 1 && n <= len(agentModes) {
 					mode = agentModes[n-1]
@@ -611,7 +614,7 @@ func run() error {
 		if strings.HasPrefix(line, "/model ") {
 			next := cfg
 			next.Model = strings.TrimSpace(strings.TrimPrefix(line, "/model "))
-			if err := config.Save(next, key); err != nil {
+			if err := config.SaveSettings(next); err != nil {
 				fmt.Fprintln(c.out, redact(err.Error(), key))
 			} else {
 				cfg = next
@@ -660,7 +663,7 @@ func run() error {
 					c.note("Session refreshed. Review any prior tool changes and retry your request.")
 				}
 			} else {
-				c.failure(authMessage(e, cfg, key))
+				c.failure(modelFailureMessage(e, cfg, key, mode))
 			}
 			ms = ms[:len(ms)-1]
 			continue

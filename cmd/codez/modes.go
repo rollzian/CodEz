@@ -13,11 +13,15 @@ const (
 	modeAsk    agentMode = "Ask"
 	modePlan   agentMode = "Plan"
 	modeReview agentMode = "Review"
+	modeChat   agentMode = "Chat"
 )
 
-var agentModes = []agentMode{modeCode, modeAsk, modePlan, modeReview}
+var agentModes = []agentMode{modeCode, modeAsk, modePlan, modeReview, modeChat}
 
 func (m agentMode) allows(name string) bool {
+	if m == modeChat {
+		return false
+	}
 	if m == modeCode {
 		return true
 	}
@@ -37,7 +41,7 @@ func (m agentMode) definitions(all []provider.ToolDef) []provider.ToolDef {
 	return out
 }
 func systemPrompt(base, model string, m agentMode) string {
-	return fmt.Sprintf("You are the active provider model %q with CodEz. When asked who you are, identify yourself as %q with CodEz. Do not claim a different model or invent a version.\nAgent mode: %s. %s\n\n%s", strings.Join(strings.Fields(model), " "), strings.Join(strings.Fields(model), " "), m, map[agentMode]string{modeCode: "Implement authorized changes and verify them.", modeAsk: "Answer questions using read-only tools. Do not edit or execute shell commands.", modePlan: "Create an implementation plan using read-only tools. Do not implement changes.", modeReview: "Review the repository and report findings with evidence. Do not edit or execute shell commands."}[m], base)
+	return fmt.Sprintf("You are the active provider model %q with CodEz. When asked who you are, identify yourself as %q with CodEz. Do not claim a different model or invent a version.\nAgent mode: %s. %s\n\n%s", strings.Join(strings.Fields(model), " "), strings.Join(strings.Fields(model), " "), m, map[agentMode]string{modeCode: "Implement authorized changes and verify them.", modeAsk: "Answer questions using read-only tools. Do not edit or execute shell commands.", modePlan: "Create an implementation plan using read-only tools. Do not implement changes.", modeReview: "Review the repository and report findings with evidence. Do not edit or execute shell commands.", modeChat: "Answer in text only. No repository tools are available. Do not claim to read, modify or execute files."}[m], base)
 }
 func (m agentMode) next() agentMode {
 	for i, v := range agentModes {

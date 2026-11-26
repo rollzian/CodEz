@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math"
 	"net/url"
@@ -21,10 +22,41 @@ type ModelInfo struct {
 	Supported   []string          `json:"supported_parameters"`
 }
 
+// Pricing is optional metadata. A nonstandard price must not prevent model discovery.
+func (m *ModelInfo) UnmarshalJSON(data []byte) error {
+	type alias ModelInfo
+	var wire struct {
+		alias
+		Pricing json.RawMessage `json:"pricing"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	*m = ModelInfo(wire.alias)
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(wire.Pricing, &fields) != nil || len(fields) == 0 {
+		return nil
+	}
+	m.Pricing = make(map[string]string, len(fields))
+	for k, raw := range fields {
+		var value string
+		if json.Unmarshal(raw, &value) != nil {
+			var number json.Number
+			if json.Unmarshal(raw, &number) == nil {
+				value = number.String()
+			}
+		}
+		// Keep unknown entries: an unknown surcharge must never be treated as free.
+		m.Pricing[k] = value
+	}
+	return nil
+}
+
 func (m ModelInfo) Prices() (float64, float64, bool) {
 	in, e1 := strconv.ParseFloat(m.Pricing["prompt"], 64)
 	out, e2 := strconv.ParseFloat(m.Pricing["completion"], 64)
-	return in * 1e6, out * 1e6, e1 == nil && e2 == nil && in >= 0 && out >= 0 && !math.IsNaN(in) && !math.IsNaN(out) && !math.IsInf(in, 0) && !math.IsInf(out, 0)
+	in, out = in*1e6, out*1e6
+	return in, out, e1 == nil && e2 == nil && in >= 0 && out >= 0 && !math.IsNaN(in) && !math.IsNaN(out) && !math.IsInf(in, 0) && !math.IsInf(out, 0)
 }
 func (m ModelInfo) Free() bool {
 	in, out, ok := m.Prices()

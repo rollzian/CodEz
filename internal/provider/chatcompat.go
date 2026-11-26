@@ -66,7 +66,11 @@ func (p *ChatCompatible) complete(ctx context.Context, messages []map[string]any
 			},
 		})
 	}
-	body := map[string]any{"model": p.Model, "messages": messages, "tools": tp, "tool_choice": "auto"}
+	body := map[string]any{"model": p.Model, "messages": messages}
+	if len(tp) > 0 {
+		body["tools"] = tp
+	}
+	// The default tool choice is automatic. Omit the optional field for compatible endpoints.
 	var raw map[string]any
 	if err := p.HTTP.modelJSON(ctx, p.BaseURL+"/chat/completions", p.headers(), body, decodeChatStream, &raw); err != nil {
 		return Result{}, err
@@ -106,6 +110,9 @@ func parseChatCompatible(raw map[string]any, messages []map[string]any) (Result,
 	assistant := map[string]any{"role": "assistant", "content": result.Text}
 	if len(calls) > 0 {
 		assistant["tool_calls"] = calls
+	}
+	if state, ok := msg["reasoning_content"].(string); ok {
+		assistant["reasoning_content"] = state
 	}
 	stateMessages := append(append([]map[string]any(nil), messages...), assistant)
 	result.Raw = chatState{Messages: stateMessages}

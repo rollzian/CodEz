@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -64,6 +65,54 @@ func authMessage(err error, cfg config.Config, key string) string {
 	return detail + " - API key missing, invalid, expired, or for a different provider. Use /setup."
 }
 
+// The catalog can be unavailable even when inference is supported. Never bypass authentication errors.
+func catalogUnavailable(err error) bool {
+	var failure *provider.HTTPError
+	return errors.As(err, &failure) && (failure.Status == http.StatusNotFound || failure.Status == http.StatusMethodNotAllowed || failure.Status == http.StatusNotImplemented)
+}
+
+func (c console) manualModel(key string) (string, string, error) {
+	id, err := c.ask("  Exact model ID (or q to cancel): ")
+	if err != nil {
+		return "", key, err
+	}
+	if id == "q" || id == "cancel" {
+		return "", key, errors.New("model selection cancelled")
+	}
+	id, err = modelSelection(id, nil)
+	return id, key, err
+}
+
+func modelFailureMessage(err error, cfg config.Config, key string, mode agentMode) string {
+	detail := authMessage(err, cfg, key)
+	var failure *provider.HTTPError
+	if !errors.As(err, &failure) {
+		return detail
+	}
+	switch failure.Status {
+	case http.StatusBadRequest, http.StatusUnprocessableEntity:
+		switch failure.Param {
+		case "stream":
+			return detail + " - Streaming rejected. Try CODEZ_NO_STREAM=1 codez (API-key mode)."
+		case "model":
+			return detail + " - Check the exact model ID and API format with /models or /setup."
+		}
+		if mode != modeChat {
+			return detail + " - Check model/API compatibility. For models without function calling, select /mode > Chat (no tools) and retry."
+		}
+		return detail + " - Check model ID, API format and supported parameters."
+	case http.StatusPaymentRequired:
+		return detail + " - Check provider balance and billing limits."
+	case http.StatusForbidden:
+		return detail + " - Provider denied access; check key permissions and model access."
+	case http.StatusNotFound:
+		return detail + " - Model or API route not found. Check /models and /setup."
+	case http.StatusTooManyRequests:
+		return detail + " - Provider rate or usage limit reached."
+	}
+	return detail
+}
+
 func (c console) catalog(cfg config.Config, key, mode string) ([]provider.ModelInfo, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -92,10 +141,18 @@ func (c console) pickModel(cfg config.Config, key, query string) (string, string
 	page := 0
 	rows, key, e := c.catalog(cfg, key, mode)
 	if e != nil {
+		if cfg.Auth != "chatgpt" && !provider.IsOpenRouter(createProvider(cfg, key)) && catalogUnavailable(e) {
+			c.note("Provider catalog unavailable. Enter a known model ID; access is checked on the first request.")
+			return c.manualModel(key)
+		}
 		return "", key, errors.New(authMessage(e, cfg, key))
 	}
 	if len(rows) == 0 {
-		return "", key, errors.New("No models available. Check provider account or install a local model.")
+		if cfg.Auth != "chatgpt" && !provider.IsOpenRouter(createProvider(cfg, key)) {
+			c.note("No models listed. Enter a known model ID or cancel.")
+			return c.manualModel(key)
+		}
+		return "", key, errors.New("No models available. Check provider account.")
 	}
 	router := provider.IsOpenRouter(createProvider(cfg, key))
 	local := strings.HasPrefix(cfg.BaseURL, "http://127.0.0.1:") || strings.HasPrefix(cfg.BaseURL, "http://localhost:")
@@ -114,7 +171,7 @@ func (c console) pickModel(cfg config.Config, key, query string) (string, string
 		items := make([]string, 0, end-start)
 		for _, m := range filtered[start:end] {
 			label := strings.Join(strings.Fields(clean(m.Label())), " ")
-			price := "price unavailable"
+			price := "price not provided"
 			if cfg.Auth == "chatgpt" {
 				price = "ChatGPT plan"
 			} else if local {
@@ -138,6 +195,7 @@ func (c console) pickModel(cfg config.Config, key, query string) (string, string
 				c.note("Filters: all / free")
 			}
 		}
+		items = append(items, "Enter exact model ID")
 		choice, err := c.selectMenu("03  /  Model library", subtitle, items, true)
 		if err != nil {
 			return "", key, err
@@ -199,6 +257,9 @@ func (c console) pickModel(cfg config.Config, key, query string) (string, string
 			continue
 		}
 		n, err := strconv.Atoi(choice)
+		if err == nil && n == end-start+1 {
+			return c.manualModel(key)
+		}
 		if err == nil && n > 0 && n <= end-start {
 			return filtered[start+n-1].ID, key, nil
 		}

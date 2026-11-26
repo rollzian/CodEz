@@ -18,14 +18,17 @@ import (
 type HTTPClient struct{ C *http.Client }
 
 type HTTPError struct {
-	Status          int
-	Code, RequestID string
+	Status                 int
+	Code, Param, RequestID string
 }
 
 func (e *HTTPError) Error() string {
 	message := fmt.Sprintf("provider HTTP %d", e.Status)
 	if e.Code != "" {
 		message += " (" + e.Code + ")"
+	}
+	if e.Param != "" {
+		message += " [parameter " + e.Param + "]"
 	}
 	if e.RequestID != "" {
 		message += " [request " + e.RequestID + "]"
@@ -49,11 +52,24 @@ func providerError(resp *http.Response) error {
 	// Extract machine-readable codes only; never echo arbitrary error bodies or credentials.
 	var body struct {
 		Error struct {
-			Code string `json:"code"`
+			Code  json.RawMessage `json:"code"`
+			Type  string          `json:"type"`
+			Param string          `json:"param"`
 		} `json:"error"`
 	}
 	if data, e := io.ReadAll(io.LimitReader(resp.Body, 16385)); e == nil && len(data) <= 16384 && json.Unmarshal(data, &body) == nil {
-		err.Code = diagnosticID(body.Error.Code)
+		var code string
+		if json.Unmarshal(body.Error.Code, &code) != nil {
+			var numeric json.Number
+			if json.Unmarshal(body.Error.Code, &numeric) == nil {
+				code = numeric.String()
+			}
+		}
+		err.Code = diagnosticID(code)
+		if err.Code == "" {
+			err.Code = diagnosticID(body.Error.Type)
+		}
+		err.Param = diagnosticID(body.Error.Param)
 	}
 	return err
 }

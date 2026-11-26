@@ -57,7 +57,10 @@ func anthropicTools(tools []ToolDef) []map[string]any {
 
 func (p *Anthropic) Complete(ctx context.Context, messages []Message, tools []ToolDef) (Result, error) {
 	system, ms := splitAnthropicMessages(messages)
-	body := map[string]any{"model": p.Model, "max_tokens": 8192, "messages": ms, "tools": anthropicTools(tools)}
+	body := map[string]any{"model": p.Model, "max_tokens": 8192, "messages": ms}
+	if len(tools) > 0 {
+		body["tools"] = anthropicTools(tools)
+	}
 	if system != "" {
 		body["system"] = system
 	}
@@ -82,7 +85,10 @@ func (p *Anthropic) Continue(ctx context.Context, messages []Message, tools []To
 		toolResults = append(toolResults, map[string]any{"type": "tool_result", "tool_use_id": id, "content": out})
 	}
 	ms = append(ms, map[string]any{"role": "user", "content": toolResults})
-	body := map[string]any{"model": p.Model, "max_tokens": 8192, "messages": ms, "tools": anthropicTools(tools)}
+	body := map[string]any{"model": p.Model, "max_tokens": 8192, "messages": ms}
+	if len(tools) > 0 {
+		body["tools"] = anthropicTools(tools)
+	}
 	if system != "" {
 		body["system"] = system
 	}

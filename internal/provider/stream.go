@@ -176,7 +176,8 @@ func decodeResponsesStream(r io.Reader, emit func(string)) (map[string]any, erro
 type streamedCall struct{ id, name, args strings.Builder }
 
 func decodeChatStream(r io.Reader, emit func(string)) (map[string]any, error) {
-	var content strings.Builder
+	var content, reasoning strings.Builder
+	var hasReasoning bool
 	calls := map[int]*streamedCall{}
 	finish := ""
 	err := consumeEvents(r, func(s string) (bool, error) {
@@ -199,6 +200,10 @@ func decodeChatStream(r io.Reader, emit func(string)) (map[string]any, error) {
 		}
 		choice := object(choices[0])
 		delta := object(choice["delta"])
+		if fragment, ok := delta["reasoning_content"].(string); ok {
+			hasReasoning = true
+			reasoning.WriteString(fragment)
+		}
 		text := stringValue(delta["content"])
 		content.WriteString(text)
 		if text != "" {
@@ -233,6 +238,9 @@ func decodeChatStream(r io.Reader, emit func(string)) (map[string]any, error) {
 		return nil, err
 	}
 	msg := map[string]any{"role": "assistant", "content": content.String()}
+	if hasReasoning {
+		msg["reasoning_content"] = reasoning.String()
+	}
 	if len(calls) > 0 {
 		ts := make([]any, 0, len(calls))
 		for i := 0; i < len(calls); i++ {

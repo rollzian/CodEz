@@ -28,7 +28,7 @@ func (p *OpenAI) headers() map[string]string {
 }
 
 func toolPayload(t ToolDef) map[string]any {
-	return map[string]any{"type": "function", "name": t.Name, "description": t.Description, "parameters": t.Schema}
+	return map[string]any{"type": "function", "name": t.Name, "description": t.Description, "parameters": t.Schema, "strict": false}
 }
 
 func (p *OpenAI) Complete(ctx context.Context, messages []Message, tools []ToolDef) (Result, error) {
@@ -40,7 +40,11 @@ func (p *OpenAI) Complete(ctx context.Context, messages []Message, tools []ToolD
 	for _, t := range tools {
 		tp = append(tp, toolPayload(t))
 	}
-	body := map[string]any{"model": p.Model, "input": input, "tools": tp, "tool_choice": "auto"}
+	body := map[string]any{"model": p.Model, "input": input}
+	if len(tp) > 0 {
+		body["tools"] = tp
+		body["tool_choice"] = "auto"
+	}
 	if p.AccountMode {
 		body["store"] = false
 		body["stream"] = true
@@ -73,7 +77,10 @@ func (p *OpenAI) Continue(ctx context.Context, messages []Message, tools []ToolD
 	for _, t := range tools {
 		tp = append(tp, toolPayload(t))
 	}
-	body := map[string]any{"model": p.Model, "previous_response_id": id, "input": items, "tools": tp}
+	body := map[string]any{"model": p.Model, "previous_response_id": id, "input": items}
+	if len(tp) > 0 {
+		body["tools"] = tp
+	}
 	if p.AccountMode {
 		history, ok := raw["_codez_input"].([]any)
 		if !ok {

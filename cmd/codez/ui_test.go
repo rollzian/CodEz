@@ -147,3 +147,31 @@ func TestInteractiveKeyOverridesStaleEnvironment(t *testing.T) {
 		t.Fatal("explicit environment selection failed", err)
 	}
 }
+
+func TestManualModelWhenCatalogUnsupported(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("CODEZ_API_KEY", "test-key")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNotFound) }))
+	defer srv.Close()
+	var out bytes.Buffer
+	c := console{in: bufio.NewReader(strings.NewReader("3\n" + srv.URL + "\nprovider/model-x\n")), out: &out}
+	cfg, key, e := c.setup()
+	if e != nil || cfg.Model != "provider/model-x" || key != "test-key" {
+		t.Fatal(cfg, e, out.String())
+	}
+	if !strings.Contains(out.String(), "access is checked on the first request") {
+		t.Fatal("manual selection did not explain unverified access")
+	}
+}
+
+func TestModelFailureDiagnostic(t *testing.T) {
+	for _, tc := range []struct {
+		code        int
+		param, want string
+	}{{400, "tools", "/mode > Chat"}, {400, "stream", "CODEZ_NO_STREAM"}, {402, "", "balance"}, {403, "", "permissions"}, {404, "", "API route"}, {429, "", "usage limit"}} {
+		e := &provider.HTTPError{Status: tc.code, Param: tc.param}
+		if s := modelFailureMessage(e, config.Config{}, "key-123", modeCode); !strings.Contains(s, tc.want) {
+			t.Fatalf("%v: %s", e, s)
+		}
+	}
+}

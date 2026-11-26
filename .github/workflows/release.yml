@@ -41,6 +41,7 @@ jobs:
           dpkg-deb -x "$package" "$work"
           "$work/usr/bin/codez" --version
           python3 scripts/smoke.py "$work/usr/bin/codez"
+          python3 scripts/model-compatibility-smoke.py "$work/usr/bin/codez"
           python3 scripts/stream-smoke.py "$work/usr/bin/codez"
           python3 scripts/menu-smoke.py "$work/usr/bin/codez"
           python3 scripts/auxia-menu-smoke.py "$work/usr/bin/codez"
